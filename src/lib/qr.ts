@@ -80,6 +80,39 @@ export async function decodeQrFromFile(file: File, onStatus?: (msg: string) => v
   return { text: result.data };
 }
 
+/** The URL encoded into each tree's QR code. Scanning it with the
+ * phone's normal camera app (no need to open this app first) opens the
+ * browser straight to that tree's page. This is the primary, reliable
+ * scan path — it works on every phone's built-in camera, not just an
+ * in-app scanner. */
+export function treeDeepLink(treeId: string): string {
+  return `${window.location.origin}/trees/${treeId}`;
+}
+
 export function qrImageUrl(value: string, size = 220): string {
   return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&qzone=1&data=${encodeURIComponent(value)}`;
+}
+
+/**
+ * Pulls a tree identifier out of whatever a scanned QR code contained.
+ * Supports the current deep-link format, the plain tree code, and the
+ * older JSON payload format from earlier versions of this app, so
+ * already-printed stickers keep working.
+ */
+export function extractTreeLookup(text: string): { treeId?: string; code?: string } {
+  const trimmed = text.trim();
+  try {
+    const url = new URL(trimmed);
+    const match = url.pathname.match(/\/trees\/([^/]+)/);
+    if (match) return { treeId: match[1] };
+  } catch {
+    // not a URL — fall through
+  }
+  try {
+    const parsed = JSON.parse(trimmed) as { treeId?: string; code?: string };
+    if (parsed.treeId || parsed.code) return parsed;
+  } catch {
+    // not JSON — fall through
+  }
+  return { code: trimmed };
 }

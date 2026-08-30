@@ -8,7 +8,7 @@ import { useWorkers } from "@/hooks/useWorkers";
 import { useLocations, useCreateLocation } from "@/hooks/useSales";
 import { can, SCOPED_ROLES } from "@/lib/permissions";
 import { healthInfo, careInfo, YIELD_EVENT_TYPES } from "@/lib/constants";
-import { qrImageUrl } from "@/lib/qr";
+import { qrImageUrl, treeDeepLink } from "@/lib/qr";
 import { fmtDate } from "@/lib/format";
 import { C, tint } from "@/lib/tokens";
 import { Badge, PrimaryButton } from "@/components/ui/primitives";
@@ -74,7 +74,7 @@ export function TreeDetailPage({ role, scopedPlots }: { role: Role; scopedPlots:
 
   const workerName = (wid?: string | null) => workers.find((w) => w.id === wid)?.name;
   const locationName = (lid?: string | null) => locations.find((l) => l.id === lid)?.name;
-  const qrUrl = qrImageUrl(tree.code);
+  const qrUrl = qrImageUrl(treeDeepLink(tree.id));
 
   return (
     <div className="pt-1 pb-4">
@@ -200,7 +200,7 @@ export function TreeDetailPage({ role, scopedPlots }: { role: Role; scopedPlots:
           <div className="flex flex-col items-center">
             <div className="rounded-2xl p-4" style={{ background: C.bgAlt }}><img src={qrUrl} alt={`QR ${tree.code}`} width={200} height={200} className="rounded-lg" /></div>
             <div className="text-sm font-bold mt-3" style={{ color: C.green }}>{tree.code}</div>
-            <p className="text-[11px] text-center mt-3" style={{ color: C.inkSoft }}>បិទស្អិតកូដនេះលើដើមទុរេន — ស្កេនដោយកម្មវិធីណាក៏បាន ព្រោះកូដសរសេរជាលេខកូដដើមផ្ទាល់។</p>
+            <p className="text-[11px] text-center mt-3" style={{ color: C.inkSoft }}>បិទស្អិតកូដនេះលើដើមទុរេន — ស្កេនដោយកាមេរ៉ាធម្មតារបស់ទូរស័ព្ទ (មិនចាំបាច់បើក app នេះជាមុនទេ) នឹងបើកទំព័រនេះដោយផ្ទាល់។</p>
           </div>
         </SheetModal>
       )}

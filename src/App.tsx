@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -105,6 +106,19 @@ function DesktopTopBar() {
   );
 }
 
+function RestorePendingRedirect() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    const pending = sessionStorage.getItem("postLoginPath");
+    if (pending) {
+      sessionStorage.removeItem("postLoginPath");
+      navigate(pending, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return null;
+}
+
 function AuthedShell() {
   const { profile } = useAuth();
   const farmQuery = useFarmSettings(true);
@@ -118,6 +132,7 @@ function AuthedShell() {
   return (
     <ThemeProvider theme={farm.theme}>
       <div className="min-h-screen flex" style={{ background: C.bg }}>
+        <RestorePendingRedirect />
         <Sidebar role={role} visibility={farm.visibility} farm={farm} profile={profile} online={online} pending={pending} />
 
         <div className="flex-1 min-w-0 flex flex-col">
@@ -152,7 +167,11 @@ export default function App() {
   const { loading, session, profile } = useAuth();
 
   if (loading) return <LoadingScreen />;
-  if (!session) return <LoginPage />;
+  if (!session) {
+    const path = window.location.pathname + window.location.search;
+    if (path !== "/" && path !== "") sessionStorage.setItem("postLoginPath", path);
+    return <LoginPage />;
+  }
   if (profile && !profile.farmId) return <PendingApprovalPage />;
 
   return (

@@ -3,7 +3,7 @@ import { ArrowLeft, Printer } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFarmSettings } from "@/hooks/useFarmSettings";
 import { useTrees } from "@/hooks/useTrees";
-import { qrImageUrl } from "@/lib/qr";
+import { qrImageUrl, treeDeepLink } from "@/lib/qr";
 import { C } from "@/lib/tokens";
 
 export function PrintQRPage() {
@@ -26,7 +26,7 @@ export function PrintQRPage() {
         <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3">
           {trees.map((t) => (
             <div key={t.id} className="rounded-xl p-2 text-center" style={{ border: `1px solid ${C.line}` }}>
-              <img src={qrImageUrl(t.code, 200)} alt={t.code} className="w-full h-auto" />
+              <img src={qrImageUrl(treeDeepLink(t.id), 200)} alt={t.code} className="w-full h-auto" />
               <div className="text-[11px] font-bold mt-1" style={{ color: C.ink }}>{t.code}</div>
               <div className="text-[9px]" style={{ color: C.inkSoft }}>{t.plot || ""}</div>
             </div>
