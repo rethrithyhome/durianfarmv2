@@ -1,0 +1,13 @@
+export const qk = {
+  workers: ["workers"] as const,
+  trees: ["trees"] as const,
+  careLogs: ["careLogs"] as const,
+  cycles: ["cycles"] as const,
+  events: ["events"] as const,
+  expenses: ["expenses"] as const,
+  locations: ["locations"] as const,
+  customers: ["customers"] as const,
+  sales: ["sales"] as const,
+  users: ["users"] as const,
+  farm: ["farm"] as const,
+};
