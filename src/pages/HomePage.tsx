@@ -8,7 +8,8 @@ import { useExpenses } from "@/hooks/useExpenses";
 import { useSales, useLocations } from "@/hooks/useSales";
 import { can } from "@/lib/permissions";
 import { healthInfo, careInfo } from "@/lib/constants";
-import { fmtDate, fmtMoney, thisYear } from "@/lib/format";
+import { fmtDate, thisYear } from "@/lib/format";
+import { fmtCurrency } from "@/lib/currency";
 import { C, tint } from "@/lib/tokens";
 import { StatCard, Badge } from "@/components/ui/primitives";
 import type { Role } from "@/types/domain";
@@ -49,8 +50,8 @@ export function HomePage({ role }: { role: Role }) {
     { harvested: 0, fallen: 0, rotten: 0, ripeFallen: 0 }
   );
   const totalWeight = yearEvents.filter((e) => e.type === "harvested").reduce((s, e) => s + (e.weightKg || 0), 0);
-  const yearExpenses = expenses.filter((e) => new Date(e.date).getFullYear() === thisYear).reduce((s, e) => s + e.amount, 0);
-  const yearRevenue = sales.filter((s) => new Date(s.date).getFullYear() === thisYear).reduce((s, r) => s + r.totalRevenue, 0);
+  const yearExpenses = expenses.filter((e) => new Date(e.date).getFullYear() === thisYear).reduce((s, e) => s + e.amountKhr, 0);
+  const yearRevenue = sales.filter((s) => new Date(s.date).getFullYear() === thisYear).reduce((s, r) => s + r.totalRevenueKhr, 0);
   const netProfit = yearRevenue - yearExpenses;
 
   return (
@@ -68,9 +69,9 @@ export function HomePage({ role }: { role: Role }) {
         <div className="rounded-2xl p-4" style={{ background: C.card, border: `1px solid ${C.line}` }}>
           <div className="text-sm font-semibold mb-3" style={{ color: C.green }}>សង្ខេបហិរញ្ញវត្ថុ ឆ្នាំ {thisYear}</div>
           <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="rounded-xl py-2.5" style={{ background: tint(C.greenMid, 12) }}><TrendingUp size={14} color={C.greenMid} className="mx-auto mb-1" /><div className="text-sm font-bold" style={{ color: C.greenMid }}>{fmtMoney(yearRevenue)}</div><div className="text-[10px]" style={{ color: C.inkSoft }}>ចំណូល</div></div>
-            <div className="rounded-xl py-2.5" style={{ background: tint(C.red, 12) }}><TrendingDown size={14} color={C.red} className="mx-auto mb-1" /><div className="text-sm font-bold" style={{ color: C.red }}>{fmtMoney(yearExpenses)}</div><div className="text-[10px]" style={{ color: C.inkSoft }}>ចំណាយ</div></div>
-            <div className="rounded-xl py-2.5" style={{ background: tint(C.gold, 22) }}><DollarSign size={14} color={C.goldDeep} className="mx-auto mb-1" /><div className="text-sm font-bold" style={{ color: netProfit >= 0 ? C.greenMid : C.red }}>{fmtMoney(netProfit)}</div><div className="text-[10px]" style={{ color: C.inkSoft }}>ចំណេញសុទ្ធ</div></div>
+            <div className="rounded-xl py-2.5" style={{ background: tint(C.greenMid, 12) }}><TrendingUp size={14} color={C.greenMid} className="mx-auto mb-1" /><div className="text-sm font-bold" style={{ color: C.greenMid }}>{fmtCurrency(yearRevenue, "KHR")}</div><div className="text-[10px]" style={{ color: C.inkSoft }}>ចំណូល</div></div>
+            <div className="rounded-xl py-2.5" style={{ background: tint(C.red, 12) }}><TrendingDown size={14} color={C.red} className="mx-auto mb-1" /><div className="text-sm font-bold" style={{ color: C.red }}>{fmtCurrency(yearExpenses, "KHR")}</div><div className="text-[10px]" style={{ color: C.inkSoft }}>ចំណាយ</div></div>
+            <div className="rounded-xl py-2.5" style={{ background: tint(C.gold, 22) }}><DollarSign size={14} color={C.goldDeep} className="mx-auto mb-1" /><div className="text-sm font-bold" style={{ color: netProfit >= 0 ? C.greenMid : C.red }}>{fmtCurrency(netProfit, "KHR")}</div><div className="text-[10px]" style={{ color: C.inkSoft }}>ចំណេញសុទ្ធ</div></div>
           </div>
         </div>
       )}
@@ -78,7 +79,7 @@ export function HomePage({ role }: { role: Role }) {
       {showSales && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <StatCard icon={Store} label="ទីតាំងលក់" value={locations.length} />
-          <StatCard icon={TrendingUp} label={`ចំណូលឆ្នាំ ${thisYear}`} value={fmtMoney(yearRevenue)} accent={C.greenMid} />
+          <StatCard icon={TrendingUp} label={`ចំណូលឆ្នាំ ${thisYear}`} value={fmtCurrency(yearRevenue, "KHR")} accent={C.greenMid} />
         </div>
       )}
 

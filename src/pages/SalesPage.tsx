@@ -5,19 +5,20 @@ import { useLocations, useCreateLocation, useUpdateLocation, useDeleteLocation, 
 import { useEvents } from "@/hooks/useYield";
 import { can } from "@/lib/permissions";
 import { SALE_TYPES } from "@/lib/constants";
-import { fmtDate, fmtMoney } from "@/lib/format";
+import { fmtDate } from "@/lib/format";
+import { fmtCurrency } from "@/lib/currency";
 import { C } from "@/lib/tokens";
 import { Badge, EmptyState } from "@/components/ui/primitives";
 import { SortMenu } from "@/components/ui/SortMenu";
 import { LocationForm } from "@/components/sales/LocationForm";
 import { CustomerForm } from "@/components/sales/CustomerForm";
 import { SaleForm } from "@/components/sales/SaleForm";
-import type { Customer, Role, Sale, SaleLocation } from "@/types/domain";
+import type { Customer, FarmSettings, Role, Sale, SaleLocation } from "@/types/domain";
 
 type SortKey = "recent" | "amount";
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [{ key: "recent", label: "កាលបរិច្ឆេទ" }, { key: "amount", label: "ចំនួនទឹកប្រាក់" }];
 
-export function SalesPage({ role }: { role: Role }) {
+export function SalesPage({ role, farm }: { role: Role; farm: FarmSettings }) {
   const { profile } = useAuth();
   const enabled = !!profile?.farmId;
   const [sub, setSub] = useState<"locations" | "customers" | "revenue">("locations");
@@ -40,12 +41,12 @@ export function SalesPage({ role }: { role: Role }) {
   const customers = customersQ.data ?? [];
   const sales = salesQ.data ?? [];
   const events = eventsQ.data ?? [];
-  const totalRevenue = sales.reduce((s, r) => s + r.totalRevenue, 0);
+  const totalRevenue = sales.reduce((s, r) => s + r.totalRevenueKhr, 0);
 
   const sortedSales = useMemo(() => {
     const list = [...sales];
     if (sort === "recent") list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    else list.sort((a, b) => b.totalRevenue - a.totalRevenue);
+    else list.sort((a, b) => b.totalRevenueKhr - a.totalRevenueKhr);
     return list;
   }, [sales, sort]);
 
@@ -54,7 +55,7 @@ export function SalesPage({ role }: { role: Role }) {
       <div className="flex rounded-xl p-1 mb-3" style={{ background: C.bgAlt }}>
         <button onClick={() => setSub("locations")} className="flex-1 rounded-lg py-2 text-[11px] font-semibold" style={{ background: sub === "locations" ? C.card : "transparent", color: sub === "locations" ? C.green : C.inkSoft }}>ទីតាំង</button>
         <button onClick={() => setSub("customers")} className="flex-1 rounded-lg py-2 text-[11px] font-semibold" style={{ background: sub === "customers" ? C.card : "transparent", color: sub === "customers" ? C.green : C.inkSoft }}>អតិថិជន</button>
-        <button onClick={() => setSub("revenue")} className="flex-1 rounded-lg py-2 text-[11px] font-semibold" style={{ background: sub === "revenue" ? C.card : "transparent", color: sub === "revenue" ? C.green : C.inkSoft }}>ចំណូល ({fmtMoney(totalRevenue)})</button>
+        <button onClick={() => setSub("revenue")} className="flex-1 rounded-lg py-2 text-[11px] font-semibold" style={{ background: sub === "revenue" ? C.card : "transparent", color: sub === "revenue" ? C.green : C.inkSoft }}>ចំណូល ({fmtCurrency(totalRevenue, "KHR")})</button>
       </div>
 
       {sub === "locations" && (
@@ -94,7 +95,7 @@ export function SalesPage({ role }: { role: Role }) {
               {customers.map((cu) => {
                 const purchases = sales.filter((s) => s.customerId === cu.id);
                 const totalQty = purchases.reduce((s, p) => s + p.quantity, 0);
-                const totalSpent = purchases.reduce((s, p) => s + p.totalRevenue, 0);
+                const totalSpent = purchases.reduce((s, p) => s + p.totalRevenueKhr, 0);
                 return (
                   <div key={cu.id} className="rounded-2xl p-3" style={{ background: C.card, border: `1px solid ${C.line}` }}>
                     <div className="flex items-center justify-between mb-1">
@@ -106,7 +107,7 @@ export function SalesPage({ role }: { role: Role }) {
                       {can(role, "editCustomer") && <div className="flex items-center gap-2"><button onClick={() => setCustModal({ mode: "edit", cust: cu })}><Pencil size={13} color={C.inkSoft} /></button>{can(role, "deleteCustomer") && <button onClick={() => deleteCust.mutate(cu.id)}><Trash2 size={13} color={C.red} /></button>}</div>}
                     </div>
                     {(cu.phone || cu.address) && <div className="text-[11px] mb-1.5" style={{ color: C.inkSoft }}>{cu.phone}{cu.phone && cu.address ? " · " : ""}{cu.address}</div>}
-                    <div className="text-[11px]" style={{ color: C.inkSoft }}>បានទិញ៖ {totalQty} ផ្លែ ក្នុង {purchases.length} ដង · សរុប <b style={{ color: C.greenMid }}>{fmtMoney(totalSpent)}</b></div>
+                    <div className="text-[11px]" style={{ color: C.inkSoft }}>បានទិញ៖ {totalQty} ផ្លែ ក្នុង {purchases.length} ដង · សរុប <b style={{ color: C.greenMid }}>{fmtCurrency(totalSpent, "KHR")}</b></div>
                     {cu.notes && <div className="text-[11px] mt-1" style={{ color: C.ink }}>{cu.notes}</div>}
                   </div>
                 );
@@ -135,8 +136,8 @@ export function SalesPage({ role }: { role: Role }) {
                       <div className="text-xs font-semibold" style={{ color: C.ink }}>{cust ? cust.name : (loc ? loc.name : "—")} <Badge label={SALE_TYPES.find((t) => t.key === s.saleType)?.label} color={s.saleType === "wholesale" ? C.blue : C.goldDeep} /></div>
                       <div className="flex items-center gap-2">{can(role, "editSale") && <button onClick={() => setSaleModal({ mode: "edit", sale: s })}><Pencil size={13} color={C.inkSoft} /></button>}{can(role, "deleteSale") && <button onClick={() => deleteSale.mutate(s.id)}><Trash2 size={13} color={C.red} /></button>}</div>
                     </div>
-                    <div className="text-[11px]" style={{ color: C.inkSoft }}>{fmtDate(s.date)}{loc && cust ? ` · ${loc.name}` : ""} · {s.quantity} ផ្លែ · {s.weightKg || 0}kg · {fmtMoney(s.unitPrice)}/kg</div>
-                    <div className="text-sm font-bold mt-1" style={{ color: C.greenMid }}>{fmtMoney(s.totalRevenue)}</div>
+                    <div className="text-[11px]" style={{ color: C.inkSoft }}>{fmtDate(s.date)}{loc && cust ? ` · ${loc.name}` : ""} · {s.quantity} ផ្លែ · {s.weightKg || 0}kg · {fmtCurrency(s.unitPrice, s.currency)}/kg</div>
+                    <div className="text-sm font-bold mt-1" style={{ color: C.greenMid }}>{fmtCurrency(s.totalRevenue, s.currency)}</div>
                   </div>
                 );
               })}
@@ -156,6 +157,7 @@ export function SalesPage({ role }: { role: Role }) {
           initial={saleModal.sale}
           locations={locations}
           customers={customers}
+          exchangeRate={farm.exchangeRate}
           onAddCustomer={async (c) => createCust.mutateAsync(c)}
           onClose={() => setSaleModal(null)}
           onSubmit={async (s) => { saleModal.mode === "add" ? await createSale.mutateAsync(s) : await updateSale.mutateAsync(s as Sale); }}

@@ -6,4 +6,5 @@ export * from "./trees";
 export * from "./yield";
 export * from "./expenses";
 export * from "./sales";
+export * from "./payroll";
 export * from "./misc";

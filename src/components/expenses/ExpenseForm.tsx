@@ -1,20 +1,24 @@
 import { useState } from "react";
-import type { Expense, Tree } from "@/types/domain";
+import type { Currency, Expense, Tree } from "@/types/domain";
 import { SheetModal } from "@/components/ui/SheetModal";
 import { Field, PrimaryButton, inputCls, inputStyle } from "@/components/ui/primitives";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { EXPENSE_CATEGORIES } from "@/lib/constants";
+import { toKhr } from "@/lib/currency";
 import { todayISO } from "@/lib/format";
 
 interface Props {
   initial?: Expense;
   trees: Tree[];
+  exchangeRate: number;
   onClose: () => void;
   onSubmit: (e: Partial<Expense>) => Promise<void>;
 }
 
-export function ExpenseForm({ initial, trees, onClose, onSubmit }: Props) {
+export function ExpenseForm({ initial, trees, exchangeRate, onClose, onSubmit }: Props) {
   const [category, setCategory] = useState<Expense["category"]>(initial?.category ?? "fertilizer");
   const [amount, setAmount] = useState(initial?.amount?.toString() ?? "");
+  const [currency, setCurrency] = useState<Currency>(initial?.currency ?? "KHR");
   const [date, setDate] = useState(initial?.date ?? todayISO());
   const [treeId, setTreeId] = useState(initial?.treeId ?? "");
   const [note, setNote] = useState(initial?.note ?? "");
@@ -24,7 +28,14 @@ export function ExpenseForm({ initial, trees, onClose, onSubmit }: Props) {
     if (!amount) return;
     setBusy(true);
     try {
-      await onSubmit({ ...(initial ?? {}), category, amount: Number(amount), date, treeId: treeId || null, note: note.trim() });
+      const numeric = Number(amount);
+      await onSubmit({
+        ...(initial ?? {}),
+        category, amount: numeric, currency,
+        amountKhr: toKhr(numeric, currency, exchangeRate),
+        exchangeRate,
+        date, treeId: treeId || null, note: note.trim(),
+      });
       onClose();
     } finally { setBusy(false); }
   };
@@ -34,7 +45,14 @@ export function ExpenseForm({ initial, trees, onClose, onSubmit }: Props) {
       <Field label="ប្រភេទចំណាយ">
         <select value={category} onChange={(e) => setCategory(e.target.value as Expense["category"])} className={inputCls} style={inputStyle}>{EXPENSE_CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}</select>
       </Field>
-      <Field label="ចំនួនទឹកប្រាក់ ($) *"><input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className={inputCls} style={inputStyle} /></Field>
+      <CurrencyInput
+        label="ចំនួនទឹកប្រាក់ *"
+        amount={amount}
+        currency={currency}
+        exchangeRate={exchangeRate}
+        onAmountChange={setAmount}
+        onCurrencyChange={setCurrency}
+      />
       <Field label="កាលបរិច្ឆេទ"><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} style={inputStyle} /></Field>
       <Field label="ភ្ជាប់ជាមួយដើម (ស្រេចចិត្ត)">
         <select value={treeId} onChange={(e) => setTreeId(e.target.value)} className={inputCls} style={inputStyle}>

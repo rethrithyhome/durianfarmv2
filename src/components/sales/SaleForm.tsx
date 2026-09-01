@@ -1,21 +1,24 @@
 import { useState } from "react";
-import type { Customer, Sale, SaleLocation } from "@/types/domain";
+import type { Currency, Customer, Sale, SaleLocation } from "@/types/domain";
 import { SheetModal } from "@/components/ui/SheetModal";
 import { Field, PrimaryButton, inputCls, inputStyle } from "@/components/ui/primitives";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { SALE_TYPES } from "@/lib/constants";
-import { fmtMoney, todayISO } from "@/lib/format";
+import { fmtCurrency, toKhr } from "@/lib/currency";
+import { todayISO } from "@/lib/format";
 import { C } from "@/lib/tokens";
 
 interface Props {
   initial?: Sale;
   locations: SaleLocation[];
   customers: Customer[];
+  exchangeRate: number;
   onAddCustomer: (c: Partial<Customer>) => Promise<Customer>;
   onClose: () => void;
   onSubmit: (s: Partial<Sale>) => Promise<void>;
 }
 
-export function SaleForm({ initial, locations, customers, onAddCustomer, onClose, onSubmit }: Props) {
+export function SaleForm({ initial, locations, customers, exchangeRate, onAddCustomer, onClose, onSubmit }: Props) {
   const [locationId, setLocationId] = useState(initial?.locationId ?? locations[0]?.id ?? "");
   const [customerId, setCustomerId] = useState(initial?.customerId ?? "");
   const [newCustomer, setNewCustomer] = useState("");
@@ -24,15 +27,22 @@ export function SaleForm({ initial, locations, customers, onAddCustomer, onClose
   const [quantity, setQuantity] = useState(initial?.quantity?.toString() ?? "");
   const [weightKg, setWeightKg] = useState(initial?.weightKg?.toString() ?? "");
   const [unitPrice, setUnitPrice] = useState(initial?.unitPrice?.toString() ?? "");
+  const [currency, setCurrency] = useState<Currency>(initial?.currency ?? "KHR");
   const [note, setNote] = useState(initial?.note ?? "");
   const [busy, setBusy] = useState(false);
   const total = (Number(weightKg) || 0) * (Number(unitPrice) || 0);
+  const totalKhr = toKhr(total, currency, exchangeRate);
 
   const submit = async () => {
     if (!locationId || !quantity) return;
     setBusy(true);
     try {
-      await onSubmit({ ...(initial ?? {}), locationId, customerId: customerId || null, saleType, date, quantity: Number(quantity), weightKg: Number(weightKg || 0), unitPrice: Number(unitPrice || 0), totalRevenue: total, note: note.trim() });
+      await onSubmit({
+        ...(initial ?? {}), locationId, customerId: customerId || null, saleType, date,
+        quantity: Number(quantity), weightKg: Number(weightKg || 0), unitPrice: Number(unitPrice || 0),
+        totalRevenue: total, currency, totalRevenueKhr: totalKhr, exchangeRate,
+        note: note.trim(),
+      });
       onClose();
     } finally { setBusy(false); }
   };
@@ -67,8 +77,18 @@ export function SaleForm({ initial, locations, customers, onAddCustomer, onClose
         <Field label="ចំនួនផ្លែ *"><input type="number" min="0" value={quantity} onChange={(e) => setQuantity(e.target.value)} className={inputCls} style={inputStyle} /></Field>
         <Field label="ទម្ងន់ (kg)"><input type="number" min="0" step="0.1" value={weightKg} onChange={(e) => setWeightKg(e.target.value)} className={inputCls} style={inputStyle} /></Field>
       </div>
-      <Field label="តម្លៃក្នុងមួយ kg ($)"><input type="number" min="0" step="0.01" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} className={inputCls} style={inputStyle} /></Field>
-      <div className="text-sm font-semibold mb-4" style={{ color: C.greenMid }}>ចំណូលសរុប៖ {fmtMoney(total)}</div>
+      <CurrencyInput
+        label="តម្លៃក្នុងមួយ kg"
+        amount={unitPrice}
+        currency={currency}
+        exchangeRate={exchangeRate}
+        onAmountChange={setUnitPrice}
+        onCurrencyChange={setCurrency}
+      />
+      <div className="text-sm font-semibold mb-4" style={{ color: C.greenMid }}>
+        ចំណូលសរុប៖ {fmtCurrency(total, currency)}
+        {currency === "USD" && total > 0 && <span className="font-normal" style={{ color: C.inkSoft }}> (≈ {fmtCurrency(totalKhr, "KHR")})</span>}
+      </div>
       <Field label="កំណត់ចំណាំ"><textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} className={inputCls} style={inputStyle} /></Field>
       <PrimaryButton full onClick={submit} disabled={busy}>{busy ? "កំពុងរក្សាទុក..." : initial ? "រក្សាទុកការផ្លាស់ប្តូរ" : "កត់ត្រាការលក់"}</PrimaryButton>
     </SheetModal>

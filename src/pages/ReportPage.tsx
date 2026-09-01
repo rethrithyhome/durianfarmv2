@@ -7,7 +7,8 @@ import { useEvents } from "@/hooks/useYield";
 import { useExpenses } from "@/hooks/useExpenses";
 import { useLocations, useCustomers, useSales } from "@/hooks/useSales";
 import { HEALTH_LEVELS, YIELD_EVENT_TYPES, EXPENSE_CATEGORIES, expenseInfo } from "@/lib/constants";
-import { fmtDate, fmtMoney, thisYear } from "@/lib/format";
+import { fmtDate, thisYear } from "@/lib/format";
+import { fmtCurrency } from "@/lib/currency";
 import { downloadCSV } from "@/lib/csv";
 import { C } from "@/lib/tokens";
 import { SALE_TYPES } from "@/lib/constants";
@@ -35,15 +36,15 @@ export function ReportPage() {
   const sums = yearEvents.reduce<Record<string, number>>((a, e) => { a[e.type] = (a[e.type] || 0) + e.quantity; return a; }, {});
   const totalWeight = yearEvents.filter((e) => e.type === "harvested").reduce((s, e) => s + (e.weightKg || 0), 0);
   const yearExpenses = expenses.filter((e) => new Date(e.date).getFullYear() === thisYear);
-  const totalExpense = yearExpenses.reduce((s, e) => s + e.amount, 0);
+  const totalExpense = yearExpenses.reduce((s, e) => s + e.amountKhr, 0);
   const yearSales = sales.filter((s) => new Date(s.date).getFullYear() === thisYear);
-  const totalRevenue = yearSales.reduce((s, r) => s + r.totalRevenue, 0);
+  const totalRevenue = yearSales.reduce((s, r) => s + r.totalRevenueKhr, 0);
   const healthCounts = HEALTH_LEVELS.map((h) => ({ ...h, count: trees.filter((t) => t.health === h.key).length }));
-  const expenseByCat = EXPENSE_CATEGORIES.map((c) => ({ ...c, total: yearExpenses.filter((e) => e.category === c.key).reduce((s, e) => s + e.amount, 0) })).filter((c) => c.total > 0);
+  const expenseByCat = EXPENSE_CATEGORIES.map((c) => ({ ...c, total: yearExpenses.filter((e) => e.category === c.key).reduce((s, e) => s + e.amountKhr, 0) })).filter((c) => c.total > 0);
   const topCustomers = customers
     .map((cu) => {
       const purchases = yearSales.filter((s) => s.customerId === cu.id);
-      return { ...cu, qty: purchases.reduce((s, p) => s + p.quantity, 0), revenue: purchases.reduce((s, p) => s + p.totalRevenue, 0) };
+      return { ...cu, qty: purchases.reduce((s, p) => s + p.quantity, 0), revenue: purchases.reduce((s, p) => s + p.totalRevenueKhr, 0) };
     })
     .filter((cu) => cu.revenue > 0)
     .sort((a, b) => b.revenue - a.revenue);
@@ -54,7 +55,7 @@ export function ReportPage() {
         <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-xs font-medium" style={{ color: C.greenMid }}><ArrowLeft size={15} /> ត្រឡប់ក្រោយ</button>
         <div className="flex items-center gap-2">
           <button onClick={() => downloadCSV(`customers-${thisYear}.csv`, [["អតិថិជន", "ប្រភេទ", "ចំនួនផ្លែ", "ចំណូល"], ...topCustomers.map((cu) => [cu.name, SALE_TYPES.find((t) => t.key === cu.type)?.label ?? "", cu.qty, cu.revenue])])} className="rounded-full px-3 py-1.5 text-[11px] font-semibold" style={{ background: C.bgAlt, color: C.green }}>CSV អតិថិជន</button>
-          <button onClick={() => downloadCSV(`expenses-${thisYear}.csv`, [["កាលបរិច្ឆេទ", "ប្រភេទ", "ចំនួន", "កំណត់ចំណាំ"], ...yearExpenses.map((e) => [e.date, expenseInfo(e.category).label, e.amount, e.note ?? ""])])} className="rounded-full px-3 py-1.5 text-[11px] font-semibold" style={{ background: C.bgAlt, color: C.green }}>CSV ចំណាយ</button>
+          <button onClick={() => downloadCSV(`expenses-${thisYear}.csv`, [["កាលបរិច្ឆេទ", "ប្រភេទ", "ចំនួន", "កំណត់ចំណាំ"], ...yearExpenses.map((e) => [e.date, expenseInfo(e.category).label, e.amountKhr, e.note ?? ""])])} className="rounded-full px-3 py-1.5 text-[11px] font-semibold" style={{ background: C.bgAlt, color: C.green }}>CSV ចំណាយ</button>
           <button onClick={() => window.print()} className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold" style={{ background: C.green, color: "#fff" }}><Printer size={13} /> បោះពុម្ព</button>
         </div>
       </div>
@@ -64,9 +65,9 @@ export function ReportPage() {
 
         <h2 className="text-sm font-bold mb-2" style={{ color: C.green }}>សង្ខេបហិរញ្ញវត្ថុ</h2>
         <div className="grid grid-cols-3 gap-2 mb-4">
-          <div className="rounded-xl p-2.5 text-center" style={{ border: `1px solid ${C.line}` }}><div className="text-sm font-bold" style={{ color: C.greenMid }}>{fmtMoney(totalRevenue)}</div><div className="text-[10px]" style={{ color: C.inkSoft }}>ចំណូល</div></div>
-          <div className="rounded-xl p-2.5 text-center" style={{ border: `1px solid ${C.line}` }}><div className="text-sm font-bold" style={{ color: C.red }}>{fmtMoney(totalExpense)}</div><div className="text-[10px]" style={{ color: C.inkSoft }}>ចំណាយ</div></div>
-          <div className="rounded-xl p-2.5 text-center" style={{ border: `1px solid ${C.line}` }}><div className="text-sm font-bold" style={{ color: totalRevenue - totalExpense >= 0 ? C.greenMid : C.red }}>{fmtMoney(totalRevenue - totalExpense)}</div><div className="text-[10px]" style={{ color: C.inkSoft }}>ចំណេញសុទ្ធ</div></div>
+          <div className="rounded-xl p-2.5 text-center" style={{ border: `1px solid ${C.line}` }}><div className="text-sm font-bold" style={{ color: C.greenMid }}>{fmtCurrency(totalRevenue, "KHR")}</div><div className="text-[10px]" style={{ color: C.inkSoft }}>ចំណូល</div></div>
+          <div className="rounded-xl p-2.5 text-center" style={{ border: `1px solid ${C.line}` }}><div className="text-sm font-bold" style={{ color: C.red }}>{fmtCurrency(totalExpense, "KHR")}</div><div className="text-[10px]" style={{ color: C.inkSoft }}>ចំណាយ</div></div>
+          <div className="rounded-xl p-2.5 text-center" style={{ border: `1px solid ${C.line}` }}><div className="text-sm font-bold" style={{ color: totalRevenue - totalExpense >= 0 ? C.greenMid : C.red }}>{fmtCurrency(totalRevenue - totalExpense, "KHR")}</div><div className="text-[10px]" style={{ color: C.inkSoft }}>ចំណេញសុទ្ធ</div></div>
         </div>
 
         <h2 className="text-sm font-bold mb-2" style={{ color: C.green }}>ដើមទុរេន ({trees.length})</h2>
@@ -89,7 +90,7 @@ export function ReportPage() {
             <h2 className="text-sm font-bold mb-2" style={{ color: C.green }}>ចំណាយតាមប្រភេទ</h2>
             <table className="w-full text-[11px] mb-4" style={{ borderCollapse: "collapse" }}>
               <thead><tr>{["ប្រភេទ", "ចំនួន"].map((h) => <th key={h} className="text-left p-1.5" style={{ border: `1px solid ${C.line}`, background: C.bgAlt }}>{h}</th>)}</tr></thead>
-              <tbody>{expenseByCat.map((c) => <tr key={c.key}><td className="p-1.5" style={{ border: `1px solid ${C.line}` }}>{c.label}</td><td className="p-1.5" style={{ border: `1px solid ${C.line}` }}>{fmtMoney(c.total)}</td></tr>)}</tbody>
+              <tbody>{expenseByCat.map((c) => <tr key={c.key}><td className="p-1.5" style={{ border: `1px solid ${C.line}` }}>{c.label}</td><td className="p-1.5" style={{ border: `1px solid ${C.line}` }}>{fmtCurrency(c.total, "KHR")}</td></tr>)}</tbody>
             </table>
           </>
         )}
@@ -97,7 +98,7 @@ export function ReportPage() {
         <h2 className="text-sm font-bold mb-2" style={{ color: C.green }}>ទីតាំងលក់ ({locations.length})</h2>
         <table className="w-full text-[11px] mb-4" style={{ borderCollapse: "collapse" }}>
           <thead><tr>{["ទីតាំង", "ចំណូល"].map((h) => <th key={h} className="text-left p-1.5" style={{ border: `1px solid ${C.line}`, background: C.bgAlt }}>{h}</th>)}</tr></thead>
-          <tbody>{locations.map((l) => <tr key={l.id}><td className="p-1.5" style={{ border: `1px solid ${C.line}` }}>{l.name}</td><td className="p-1.5" style={{ border: `1px solid ${C.line}` }}>{fmtMoney(yearSales.filter((s) => s.locationId === l.id).reduce((s, r) => s + r.totalRevenue, 0))}</td></tr>)}</tbody>
+          <tbody>{locations.map((l) => <tr key={l.id}><td className="p-1.5" style={{ border: `1px solid ${C.line}` }}>{l.name}</td><td className="p-1.5" style={{ border: `1px solid ${C.line}` }}>{fmtCurrency(yearSales.filter((s) => s.locationId === l.id).reduce((s, r) => s + r.totalRevenueKhr, 0), "KHR")}</td></tr>)}</tbody>
         </table>
 
         {topCustomers.length > 0 && (
@@ -105,7 +106,7 @@ export function ReportPage() {
             <h2 className="text-sm font-bold mb-2" style={{ color: C.green }}>អតិថិជនកំពូល ឆ្នាំ {thisYear}</h2>
             <table className="w-full text-[11px]" style={{ borderCollapse: "collapse" }}>
               <thead><tr>{["អតិថិជន", "ប្រភេទ", "ចំនួនផ្លែ", "ចំណូល"].map((h) => <th key={h} className="text-left p-1.5" style={{ border: `1px solid ${C.line}`, background: C.bgAlt }}>{h}</th>)}</tr></thead>
-              <tbody>{topCustomers.map((cu) => <tr key={cu.id}><td className="p-1.5" style={{ border: `1px solid ${C.line}` }}>{cu.name}</td><td className="p-1.5" style={{ border: `1px solid ${C.line}` }}>{SALE_TYPES.find((t) => t.key === cu.type)?.label}</td><td className="p-1.5" style={{ border: `1px solid ${C.line}` }}>{cu.qty}</td><td className="p-1.5" style={{ border: `1px solid ${C.line}` }}>{fmtMoney(cu.revenue)}</td></tr>)}</tbody>
+              <tbody>{topCustomers.map((cu) => <tr key={cu.id}><td className="p-1.5" style={{ border: `1px solid ${C.line}` }}>{cu.name}</td><td className="p-1.5" style={{ border: `1px solid ${C.line}` }}>{SALE_TYPES.find((t) => t.key === cu.type)?.label}</td><td className="p-1.5" style={{ border: `1px solid ${C.line}` }}>{cu.qty}</td><td className="p-1.5" style={{ border: `1px solid ${C.line}` }}>{fmtCurrency(cu.revenue, "KHR")}</td></tr>)}</tbody>
             </table>
           </>
         )}

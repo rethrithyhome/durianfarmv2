@@ -1,6 +1,6 @@
 import { supabase, DEFAULT_FARM_ID } from "@/lib/supabaseClient";
 import { must } from "./_shared";
-import type { Customer, Sale, SaleLocation, SaleType } from "@/types/domain";
+import type { Currency, Customer, Sale, SaleLocation, SaleType } from "@/types/domain";
 
 /* ---------------- SALE LOCATIONS ---------------- */
 interface LocationRow { id: string; name: string; type: SaleType; area: string | null; notes: string | null }
@@ -43,12 +43,20 @@ export async function deleteCustomer(id: string): Promise<void> {
 /* ---------------- SALES ---------------- */
 interface SaleRow {
   id: string; location_id: string | null; customer_id: string | null; sale_type: SaleType; date: string;
-  quantity: number; weight_kg: number; unit_price: number; total_revenue: number; note: string | null;
+  quantity: number; weight_kg: number; unit_price: number; total_revenue: number;
+  currency: Currency; total_revenue_khr: number; exchange_rate: number; note: string | null;
 }
-const saleFromRow = (r: SaleRow): Sale => ({ id: r.id, locationId: r.location_id, customerId: r.customer_id, saleType: r.sale_type, date: r.date, quantity: r.quantity, weightKg: r.weight_kg, unitPrice: r.unit_price, totalRevenue: r.total_revenue, note: r.note });
+const saleFromRow = (r: SaleRow): Sale => ({
+  id: r.id, locationId: r.location_id, customerId: r.customer_id, saleType: r.sale_type, date: r.date,
+  quantity: r.quantity, weightKg: Number(r.weight_kg), unitPrice: Number(r.unit_price), totalRevenue: Number(r.total_revenue),
+  currency: r.currency ?? "KHR", totalRevenueKhr: Number(r.total_revenue_khr ?? r.total_revenue),
+  exchangeRate: Number(r.exchange_rate ?? 4100), note: r.note,
+});
 const saleToRow = (s: Partial<Sale>, farmId: string) => ({
   farm_id: farmId, location_id: s.locationId || null, customer_id: s.customerId || null, sale_type: s.saleType, date: s.date,
-  quantity: s.quantity, weight_kg: s.weightKg, unit_price: s.unitPrice, total_revenue: s.totalRevenue, note: s.note || null,
+  quantity: s.quantity, weight_kg: s.weightKg, unit_price: s.unitPrice, total_revenue: s.totalRevenue,
+  currency: s.currency ?? "KHR", total_revenue_khr: s.totalRevenueKhr ?? s.totalRevenue,
+  exchange_rate: s.exchangeRate ?? 4100, note: s.note || null,
 });
 
 export async function listSales(farmId: string = DEFAULT_FARM_ID): Promise<Sale[]> {

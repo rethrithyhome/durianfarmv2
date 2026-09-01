@@ -1,4 +1,4 @@
-import { Shield, Briefcase, Map, User, Store, Home, Users, TreePine, Wallet, Settings as SettingsIcon, type LucideIcon } from "lucide-react";
+import { Shield, Briefcase, Map, User, Store, Home, Users, TreePine, Wallet, Receipt, Settings as SettingsIcon, type LucideIcon } from "lucide-react";
 import type { CareLog, Role, RoleVisibility, Tree, TabKey, YieldCycle, YieldEvent } from "@/types/domain";
 
 export interface RoleInfo { key: Role; label: string; icon: LucideIcon; desc: string }
@@ -21,7 +21,8 @@ export type Perm =
   | "addLocation" | "editLocation" | "deleteLocation"
   | "addCustomer" | "editCustomer" | "deleteCustomer"
   | "addSale" | "editSale" | "deleteSale"
-  | "settings" | "resetData" | "viewUsers" | "manageUsers" | "manageVisibility" | "viewReports";
+  | "settings" | "resetData" | "viewUsers" | "manageUsers" | "manageVisibility" | "viewReports"
+  | "payroll" | "logWork" | "setWage" | "payWages";
 
 const PERMS: Record<Role, Perm[]> = {
   owner: [
@@ -29,13 +30,17 @@ const PERMS: Record<Role, Perm[]> = {
     "addCare", "addYieldCycle", "addYieldEvent", "addExpense", "editExpense", "deleteExpense",
     "addLocation", "editLocation", "deleteLocation", "addCustomer", "editCustomer", "deleteCustomer",
     "addSale", "editSale", "deleteSale", "settings", "resetData", "viewUsers", "manageUsers", "manageVisibility", "viewReports",
+    "payroll", "logWork", "setWage", "payWages",
   ],
   general_manager: [
     "view", "farm", "sales", "addWorker", "editWorker", "addTree", "editTree",
     "addCare", "addYieldCycle", "addYieldEvent", "addExpense", "editExpense",
     "addLocation", "editLocation", "addCustomer", "editCustomer", "addSale", "editSale", "viewUsers", "viewReports",
+    "payroll", "logWork", "setWage", "payWages",
   ],
-  team_lead: ["view", "farm", "addTree", "editTree", "addCare", "addYieldCycle", "addYieldEvent"],
+  // Team leads are with the crew daily, so they record hours — but they
+  // don't see or set wage amounts.
+  team_lead: ["view", "farm", "addTree", "editTree", "addCare", "addYieldCycle", "addYieldEvent", "payroll", "logWork"],
   skilled_worker: ["view", "farm", "addCare", "addYieldEvent"],
   sales: ["view", "sales", "addLocation", "editLocation", "addCustomer", "editCustomer", "addSale", "editSale"],
 };
@@ -65,17 +70,18 @@ export interface TabDef { key: TabKey; label: string; icon: LucideIcon; need: Pe
 export const APP_TABS: TabDef[] = [
   { key: "home", label: "ទំព័រដើម", icon: Home, need: "view" },
   { key: "workers", label: "កម្មករ", icon: Users, need: "farm" },
+  { key: "payroll", label: "ប្រាក់ឈ្នួល", icon: Wallet, need: "payroll" },
   { key: "trees", label: "ដើមទុរេន", icon: TreePine, need: "farm" },
-  { key: "expenses", label: "ចំណាយ", icon: Wallet, need: "farm" },
+  { key: "expenses", label: "ចំណាយ", icon: Receipt, need: "farm" },
   { key: "sales", label: "លក់", icon: Store, need: "sales" },
   { key: "settings", label: "កំណត់", icon: SettingsIcon, need: "view" },
 ];
 export const VISIBILITY_ROLES: Role[] = ["general_manager", "team_lead", "skilled_worker", "sales"];
 export const defaultVisibility = (): Record<string, Partial<RoleVisibility>> => ({
-  general_manager: { home: true, workers: true, trees: true, expenses: true, sales: true, settings: true },
-  team_lead: { home: true, workers: false, trees: true, expenses: false, sales: false, settings: true },
-  skilled_worker: { home: true, workers: false, trees: true, expenses: false, sales: false, settings: true },
-  sales: { home: true, workers: false, trees: false, expenses: false, sales: true, settings: true },
+  general_manager: { home: true, workers: true, payroll: true, trees: true, expenses: true, sales: true, settings: true },
+  team_lead: { home: true, workers: false, payroll: true, trees: true, expenses: false, sales: false, settings: true },
+  skilled_worker: { home: true, workers: false, payroll: false, trees: true, expenses: false, sales: false, settings: true },
+  sales: { home: true, workers: false, payroll: false, trees: false, expenses: false, sales: true, settings: true },
 });
 export function getVisibleTabs(role: Role, visibility: Record<string, Partial<RoleVisibility>>): TabDef[] {
   const base = APP_TABS.filter((t) => can(role, t.need));

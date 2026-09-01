@@ -1,10 +1,21 @@
 import { supabase, DEFAULT_FARM_ID } from "@/lib/supabaseClient";
 import { must } from "./_shared";
-import type { Expense, ExpenseCategory } from "@/types/domain";
+import type { Currency, Expense, ExpenseCategory } from "@/types/domain";
 
-interface ExpenseRow { id: string; category: ExpenseCategory; amount: number; date: string; tree_id: string | null; note: string | null }
-const fromRow = (r: ExpenseRow): Expense => ({ id: r.id, category: r.category, amount: r.amount, date: r.date, treeId: r.tree_id, note: r.note });
-const toRow = (e: Partial<Expense>, farmId: string) => ({ farm_id: farmId, category: e.category, amount: e.amount, date: e.date, tree_id: e.treeId || null, note: e.note || null });
+interface ExpenseRow {
+  id: string; category: ExpenseCategory; amount: number; currency: Currency;
+  amount_khr: number; exchange_rate: number; date: string; tree_id: string | null; note: string | null;
+}
+const fromRow = (r: ExpenseRow): Expense => ({
+  id: r.id, category: r.category, amount: Number(r.amount), currency: r.currency ?? "KHR",
+  amountKhr: Number(r.amount_khr ?? r.amount), exchangeRate: Number(r.exchange_rate ?? 4100),
+  date: r.date, treeId: r.tree_id, note: r.note,
+});
+const toRow = (e: Partial<Expense>, farmId: string) => ({
+  farm_id: farmId, category: e.category, amount: e.amount, currency: e.currency ?? "KHR",
+  amount_khr: e.amountKhr ?? e.amount, exchange_rate: e.exchangeRate ?? 4100,
+  date: e.date, tree_id: e.treeId || null, note: e.note || null,
+});
 
 export async function listExpenses(farmId: string = DEFAULT_FARM_ID): Promise<Expense[]> {
   const rows = must(await supabase.from("expenses").select("*").eq("farm_id", farmId).order("date", { ascending: false }));

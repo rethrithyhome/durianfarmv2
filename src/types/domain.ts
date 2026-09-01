@@ -1,3 +1,6 @@
+import type { Currency } from "@/lib/currency";
+export type { Currency };
+
 export type Role = "owner" | "general_manager" | "team_lead" | "skilled_worker" | "sales";
 
 export type Health = "excellent" | "normal" | "needs_care" | "sick";
@@ -14,6 +17,8 @@ export type SaleType = "retail" | "wholesale";
 
 export type Status = "active" | "inactive";
 
+export type WageType = "monthly" | "hourly";
+
 export interface Worker {
   id: string;
   name: string;
@@ -24,6 +29,33 @@ export interface Worker {
   status: Status;
   photo?: string | null;
   notes?: string | null;
+  // Payroll — each worker has their own rate, set individually, so
+  // different people can be paid differently for the same work.
+  wageType: WageType;
+  wageRate: number;          // monthly salary, or per-hour rate
+  wageCurrency: Currency;
+}
+
+export interface WorkLog {
+  id: string;
+  workerId: string;
+  date: string;
+  hours: number;
+  note?: string | null;
+}
+
+export interface PayrollPayment {
+  id: string;
+  workerId: string;
+  cycleStart: string;
+  cycleEnd: string;
+  amount: number;            // in the currency it was paid in
+  currency: Currency;
+  amountKhr: number;         // converted at the time of payment
+  exchangeRate: number;      // rate used, frozen at payment time
+  paidDate: string;
+  expenseId?: string | null;
+  note?: string | null;
 }
 
 export interface Tree {
@@ -71,7 +103,10 @@ export interface YieldEvent {
 export interface Expense {
   id: string;
   category: ExpenseCategory;
-  amount: number;
+  amount: number;            // as entered, in `currency`
+  currency: Currency;
+  amountKhr: number;         // converted to base currency at entry time
+  exchangeRate: number;      // rate used, frozen so history never shifts
   date: string;
   treeId?: string | null;
   note?: string | null;
@@ -102,8 +137,11 @@ export interface Sale {
   date: string;
   quantity: number;
   weightKg: number;
-  unitPrice: number;
-  totalRevenue: number;
+  unitPrice: number;            // as entered, in `currency`
+  totalRevenue: number;         // as entered, in `currency`
+  currency: Currency;
+  totalRevenueKhr: number;      // converted to base currency at entry time
+  exchangeRate: number;         // rate used, frozen so history never shifts
   note?: string | null;
 }
 
@@ -120,11 +158,12 @@ export interface UserProfile {
   notes?: string | null;
 }
 
-export type TabKey = "home" | "workers" | "trees" | "expenses" | "sales" | "settings";
+export type TabKey = "home" | "workers" | "payroll" | "trees" | "expenses" | "sales" | "settings";
 
 export interface RoleVisibility {
   home: boolean;
   workers: boolean;
+  payroll: boolean;
   trees: boolean;
   expenses: boolean;
   sales: boolean;
@@ -136,5 +175,7 @@ export interface FarmSettings {
   logo: string | null;
   ownerPin: string;
   theme: string;
+  exchangeRate: number;          // ៛ per $1, set manually by the owner
+  payrollCycleStartDay: number;  // 1–28; e.g. 15 means the 15th–14th
   visibility: Partial<Record<Role, Partial<RoleVisibility>>>;
 }

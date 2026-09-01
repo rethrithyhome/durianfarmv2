@@ -32,6 +32,8 @@ export function SettingsPage({ role, farm }: { role: Role; farm: FarmSettings })
 
   const [name, setName] = useState(farm.farmName);
   const [ownerPin, setOwnerPin] = useState(farm.ownerPin);
+  const [rate, setRate] = useState(farm.exchangeRate.toString());
+  const [cycleDay, setCycleDay] = useState(farm.payrollCycleStartDay.toString());
   const [logoBusy, setLogoBusy] = useState(false);
   const logoInputId = useId();
   const [confirmReset, setConfirmReset] = useState(false);
@@ -98,6 +100,21 @@ export function SettingsPage({ role, farm }: { role: Role; farm: FarmSettings })
       </div>
 
       {can(role, "settings") && <ThemePicker current={farm.theme} onChange={(key) => updateFarmM.mutate({ theme: key })} />}
+
+      {can(role, "settings") && (
+        <div className="rounded-2xl p-4" style={{ background: C.card, border: `1px solid ${C.line}` }}>
+          <div className="text-sm font-semibold mb-1" style={{ color: C.green }}>រូបិយប័ណ្ណ និងប្រាក់ឈ្នួល</div>
+          <div className="text-[11px] mb-3" style={{ color: C.inkSoft }}>របាយការណ៍ទាំងអស់គិតជាប្រាក់រៀល (៛) ជាគោល</div>
+          <Field label="អត្រាប្តូរប្រាក់ ($1 = ៛?)">
+            <input type="number" min="1" step="1" value={rate} onChange={(e) => setRate(e.target.value)} className={inputCls} style={inputStyle} placeholder="4100" />
+          </Field>
+          <Field label="ថ្ងៃចាប់ផ្តើមខួបប្រាក់ឈ្នួល (1–28)">
+            <input type="number" min="1" max="28" step="1" value={cycleDay} onChange={(e) => setCycleDay(e.target.value)} className={inputCls} style={inputStyle} placeholder="1" />
+            <div className="text-[10.5px] mt-1" style={{ color: C.inkSoft }}>ឧ. ដាក់ 15 → ខួបគឺ ១៥ ដល់ ១៤ ខែបន្ទាប់។ ដាក់ 1 → ដើមខែដល់ចុងខែ</div>
+          </Field>
+          <PrimaryButton onClick={() => updateFarmM.mutate({ exchangeRate: Number(rate) || 4100, payrollCycleStartDay: Math.min(Math.max(Number(cycleDay) || 1, 1), 28) })}>រក្សាទុក</PrimaryButton>
+        </div>
+      )}
 
       {can(role, "viewReports") && (
         <div className="rounded-2xl p-4" style={{ background: C.card, border: `1px solid ${C.line}` }}>

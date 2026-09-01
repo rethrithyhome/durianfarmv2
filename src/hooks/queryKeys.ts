@@ -8,6 +8,8 @@ export const qk = {
   locations: ["locations"] as const,
   customers: ["customers"] as const,
   sales: ["sales"] as const,
+  workLogs: ["workLogs"] as const,
+  payroll: ["payroll"] as const,
   users: ["users"] as const,
   farm: ["farm"] as const,
 };

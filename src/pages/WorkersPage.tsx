@@ -6,9 +6,9 @@ import { can } from "@/lib/permissions";
 import { C } from "@/lib/tokens";
 import { Badge, EmptyState } from "@/components/ui/primitives";
 import { WorkerForm } from "@/components/workers/WorkerForm";
-import type { Role, Worker } from "@/types/domain";
+import type { FarmSettings, Role, Worker } from "@/types/domain";
 
-export function WorkersPage({ role }: { role: Role }) {
+export function WorkersPage({ role, farm }: { role: Role; farm: FarmSettings }) {
   const { profile } = useAuth();
   const enabled = !!profile?.farmId;
   const workersQ = useWorkers(enabled);
@@ -61,6 +61,8 @@ export function WorkersPage({ role }: { role: Role }) {
         <WorkerForm
           initial={modal.worker}
           allowedPlots={null}
+          exchangeRate={farm.exchangeRate}
+          canSetWage={can(role, "setWage")}
           onClose={() => setModal(null)}
           onSubmit={async (w) => { modal.mode === "add" ? await createM.mutateAsync(w) : await updateM.mutateAsync(w as Worker); }}
         />

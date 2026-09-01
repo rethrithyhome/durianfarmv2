@@ -8,6 +8,7 @@ import { LoginPage } from "@/pages/LoginPage";
 import { PendingApprovalPage } from "@/pages/PendingApprovalPage";
 import { HomePage } from "@/pages/HomePage";
 import { WorkersPage } from "@/pages/WorkersPage";
+import { PayrollPage } from "@/pages/PayrollPage";
 import { TreesPage } from "@/pages/TreesPage";
 import { TreeDetailPage } from "@/pages/TreeDetailPage";
 import { ExpensesPage } from "@/pages/ExpensesPage";
@@ -143,11 +144,12 @@ function AuthedShell() {
             <div className="max-w-6xl mx-auto">
               <Routes>
                 <Route path="/" element={<HomePage role={role} />} />
-                <Route path="/workers" element={<WorkersPage role={role} />} />
+                <Route path="/workers" element={<WorkersPage role={role} farm={farm} />} />
+                <Route path="/payroll" element={<PayrollPage role={role} farm={farm} />} />
                 <Route path="/trees" element={<TreesPage role={role} scopedPlots={profile.plots} />} />
                 <Route path="/trees/:id" element={<TreeDetailPage role={role} scopedPlots={profile.plots} />} />
-                <Route path="/expenses" element={<ExpensesPage role={role} />} />
-                <Route path="/sales" element={<SalesPage role={role} />} />
+                <Route path="/expenses" element={<ExpensesPage role={role} farm={farm} />} />
+                <Route path="/sales" element={<SalesPage role={role} farm={farm} />} />
                 <Route path="/settings" element={<SettingsPage role={role} farm={farm} />} />
                 <Route path="/print-qr" element={<PrintQRPage />} />
                 <Route path="/reports" element={<ReportPage />} />
