@@ -1,11 +1,51 @@
 import { useMutation, useQueryClient, type QueryKey } from "@tanstack/react-query";
-import { enqueueMutation } from "@/lib/offlineQueue";
+import { enqueueMutation, type MutationAction } from "@/lib/offlineQueue";
 import { uid } from "@/lib/format";
+
+// If a real network round-trip hasn't finished in this long, treat it as
+// failed rather than let the UI hang — a weak/degrading signal in the
+// field can otherwise leave a fetch() pending for a very long time
+// (sometimes indefinitely) instead of rejecting quickly.
+const NETWORK_TIMEOUT_MS = 7000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("TIMEOUT")), ms);
+    promise.then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); }
+    );
+  });
+}
 
 function isNetworkError(err: unknown): boolean {
   if (!navigator.onLine) return true;
   const msg = err instanceof Error ? err.message : String(err);
-  return /fetch|network|Network|Failed to fetch/i.test(msg);
+  return /fetch|network|Network|Failed to fetch|TIMEOUT/i.test(msg);
+}
+
+/**
+ * Runs apiCall(), but:
+ * - if the browser already reports offline, skips the network attempt
+ *   entirely and queues immediately (near-instant — never blocks the UI)
+ * - otherwise races it against a timeout, queuing on failure or timeout
+ * so a modal can never get stuck waiting on a connection that isn't
+ * actually going to come through in time.
+ */
+async function runOrQueue<T>(resource: string, action: MutationAction, payload: unknown, apiCall: () => Promise<T>, offlineResult: () => T): Promise<T> {
+  if (!navigator.onLine) {
+    await enqueueMutation({ resource, action, payload });
+    return offlineResult();
+  }
+  try {
+    return await withTimeout(apiCall(), NETWORK_TIMEOUT_MS);
+  } catch (err) {
+    if (isNetworkError(err)) {
+      await enqueueMutation({ resource, action, payload });
+      return offlineResult();
+    }
+    throw err;
+  }
 }
 
 interface WithId { id: string }
@@ -19,17 +59,8 @@ export function useCreateResource<T extends Partial<WithId>>(
 ) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: Partial<T>): Promise<T & WithId> => {
-      try {
-        return await apiFn(payload);
-      } catch (err) {
-        if (isNetworkError(err)) {
-          await enqueueMutation({ resource, action: "create", payload });
-          return { ...(payload as T), id: `temp-${uid()}` } as T & WithId;
-        }
-        throw err;
-      }
-    },
+    mutationFn: (payload: Partial<T>): Promise<T & WithId> =>
+      runOrQueue(resource, "create", payload, () => apiFn(payload), () => ({ ...(payload as T), id: `temp-${uid()}` } as T & WithId)),
     onSuccess: (row) => {
       qc.setQueryData<(T & WithId)[]>(queryKey, (prev) => [row, ...(prev ?? [])]);
     },
@@ -44,17 +75,8 @@ export function useUpdateResource<T extends WithId>(
 ) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: T): Promise<T> => {
-      try {
-        return await apiFn(payload);
-      } catch (err) {
-        if (isNetworkError(err)) {
-          await enqueueMutation({ resource, action: "update", payload });
-          return payload;
-        }
-        throw err;
-      }
-    },
+    mutationFn: (payload: T): Promise<T> =>
+      runOrQueue(resource, "update", payload, () => apiFn(payload), () => payload),
     onSuccess: (row) => {
       qc.setQueryData<T[]>(queryKey, (prev) => (prev ?? []).map((x) => (x.id === row.id ? row : x)));
     },
@@ -65,18 +87,8 @@ export function useUpdateResource<T extends WithId>(
 export function useDeleteResource(resource: string, queryKey: QueryKey, apiFn: (id: string) => Promise<void>) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string): Promise<string> => {
-      try {
-        await apiFn(id);
-      } catch (err) {
-        if (isNetworkError(err)) {
-          await enqueueMutation({ resource, action: "delete", payload: { id } });
-        } else {
-          throw err;
-        }
-      }
-      return id;
-    },
+    mutationFn: (id: string): Promise<string> =>
+      runOrQueue(resource, "delete", { id }, () => apiFn(id), () => undefined).then(() => id),
     onSuccess: (id) => {
       qc.setQueryData<WithId[]>(queryKey, (prev) => (prev ?? []).filter((x) => x.id !== id));
     },
