@@ -94,7 +94,7 @@ export function TreesPage({ role, scopedPlots }: { role: Role; scopedPlots: stri
         />
       )}
       {scanOpen && (
-        <ScanQRModal trees={trees} onClose={() => setScanOpen(false)} onFound={(id) => { setScanOpen(false); navigate(`/trees/${id}`); }} />
+        <ScanQRModal trees={trees} onClose={() => setScanOpen(false)} onFound={(id) => { setScanOpen(false); navigate(`/trees/${id}?scanned=1`); }} />
       )}
     </div>
   );

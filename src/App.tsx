@@ -9,6 +9,7 @@ import { PendingApprovalPage } from "@/pages/PendingApprovalPage";
 import { HomePage } from "@/pages/HomePage";
 import { WorkersPage } from "@/pages/WorkersPage";
 import { PayrollPage } from "@/pages/PayrollPage";
+import { TasksPage } from "@/pages/TasksPage";
 import { TreesPage } from "@/pages/TreesPage";
 import { TreeDetailPage } from "@/pages/TreeDetailPage";
 import { ExpensesPage } from "@/pages/ExpensesPage";
@@ -16,13 +17,15 @@ import { SalesPage } from "@/pages/SalesPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { PrintQRPage } from "@/pages/PrintQRPage";
 import { ReportPage } from "@/pages/ReportPage";
+import { AuditLogPage } from "@/pages/AuditLogPage";
 import { DurianMark } from "@/components/ui/DurianMark";
 import { Sidebar } from "@/components/layout/Sidebar";
-import { C } from "@/lib/tokens";
+import { C, R, SHADOW } from "@/lib/tokens";
 import { APP_TABS, getVisibleTabs, roleInfo } from "@/lib/permissions";
 import { LogOut, WifiOff } from "lucide-react";
 import * as api from "@/api";
 import type { FarmSettings, Role, TabKey } from "@/types/domain";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 
 function LoadingScreen() {
   return (
@@ -47,13 +50,13 @@ function BottomNav({ role, visibility }: { role: Role; visibility: FarmSettings[
   return (
     <div className="fixed bottom-0 left-0 right-0 z-30 flex justify-center no-print lg:hidden">
       <div className="w-full max-w-md px-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
-        <div className="flex items-center justify-between rounded-2xl px-1 py-1.5" style={{ background: `linear-gradient(135deg, ${C.green}, ${C.greenMid})`, boxShadow: "0 6px 24px rgba(0,0,0,0.22)" }}>
+        <div className="flex items-center justify-between px-1 py-1.5" style={{ background: `linear-gradient(135deg, ${C.green}, ${C.greenMid})`, borderRadius: R.lg, boxShadow: SHADOW.float }}>
           {tabs.map((it) => {
             const Icon = it.icon;
             const activeItem = currentTab === it.key || (it.key === "home" && location.pathname === "/");
             const path = it.key === "home" ? "/" : `/${it.key}`;
             return (
-              <button key={it.key} onClick={() => navigate(path)} className="relative flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-xl" style={{ background: activeItem ? "rgba(255,255,255,0.14)" : "transparent" }}>
+              <button key={it.key} onClick={() => navigate(path)} className="relative flex-1 flex flex-col items-center gap-0.5 py-1.5" style={{ background: activeItem ? "rgba(255,255,255,0.14)" : "transparent", borderRadius: R.base }}>
                 {activeItem && <span className="absolute -top-0.5 w-6 h-0.5 rounded-full" style={{ background: C.gold }} />}
                 <Icon size={17} color={activeItem ? C.gold : "#C9D2C4"} />
                 <span className="text-[9px] font-medium" style={{ color: activeItem ? "#fff" : "#B7C2B1" }}>{it.label}</span>
@@ -67,6 +70,7 @@ function BottomNav({ role, visibility }: { role: Role; visibility: FarmSettings[
 }
 
 function MobileHeader({ farm, role, profile, online, pending }: { farm: FarmSettings; role: Role; profile: NonNullable<ReturnType<typeof useAuth>["profile"]>; online: boolean; pending: number }) {
+  const confirm = useConfirm();
   return (
     <div className="sticky top-0 z-30 px-4 pt-4 pb-3 no-print lg:hidden" style={{ background: C.bg }}>
       <div className="flex items-center justify-between">
@@ -89,7 +93,7 @@ function MobileHeader({ farm, role, profile, online, pending }: { farm: FarmSett
             </div>
           </div>
         </div>
-        <button onClick={() => api.signOut()} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: C.bgAlt }}><LogOut size={15} color={C.red} /></button>
+        <button onClick={async () => { if (await confirm({ title: "ចាកចេញពីគណនី?", message: "អ្នកនឹងត្រូវបញ្ចូល email និងពាក្យសម្ងាត់ម្តងទៀត ដើម្បីចូលប្រើប្រព័ន្ធ។", confirmLabel: "ចាកចេញ", danger: true })) api.signOut(); }} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: C.bgAlt }}><LogOut size={15} color={C.red} /></button>
       </div>
     </div>
   );
@@ -102,7 +106,7 @@ function DesktopTopBar() {
   const title = isTreeDetail ? "ព័ត៌មានលម្អិតដើមទុរេន" : tab?.label ?? "ទំព័រដើម";
   return (
     <div className="hidden lg:flex items-center justify-between px-8 py-5 no-print" style={{ borderBottom: `1px solid ${C.line}` }}>
-      <h1 className="text-lg" style={{ color: C.green, fontWeight: 800, letterSpacing: "-0.02em" }}>{title}</h1>
+      <h1 className="text-lg" style={{ color: C.green, fontWeight: "var(--font-heading-weight)" as never, letterSpacing: "-0.02em" }}>{title}</h1>
     </div>
   );
 }
@@ -145,6 +149,7 @@ function AuthedShell() {
               <Routes>
                 <Route path="/" element={<HomePage role={role} />} />
                 <Route path="/workers" element={<WorkersPage role={role} farm={farm} />} />
+                <Route path="/tasks" element={<TasksPage role={role} />} />
                 <Route path="/payroll" element={<PayrollPage role={role} farm={farm} />} />
                 <Route path="/trees" element={<TreesPage role={role} scopedPlots={profile.plots} />} />
                 <Route path="/trees/:id" element={<TreeDetailPage role={role} scopedPlots={profile.plots} />} />
@@ -153,6 +158,7 @@ function AuthedShell() {
                 <Route path="/settings" element={<SettingsPage role={role} farm={farm} />} />
                 <Route path="/print-qr" element={<PrintQRPage />} />
                 <Route path="/reports" element={<ReportPage />} />
+                <Route path="/audit" element={<AuditLogPage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </div>

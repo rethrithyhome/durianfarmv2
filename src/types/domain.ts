@@ -34,6 +34,7 @@ export interface Worker {
   wageType: WageType;
   wageRate: number;          // monthly salary, or per-hour rate
   wageCurrency: Currency;
+  startDate?: string | null; // first day of work; pro-rates a partial first cycle
 }
 
 export interface WorkLog {
@@ -42,12 +43,15 @@ export interface WorkLog {
   date: string;
   hours: number;
   note?: string | null;
+  paymentId?: string | null; // null = not yet paid out
 }
 
 export interface PayrollPayment {
   id: string;
   workerId: string;
-  cycleStart: string;
+  wageType: WageType;
+  hoursPaid?: number | null;  // hourly payments: hours settled by this payment
+  cycleStart: string;         // period covered — a monthly cycle, or any chosen range
   cycleEnd: string;
   amount: number;            // in the currency it was paid in
   currency: Currency;
@@ -158,11 +162,12 @@ export interface UserProfile {
   notes?: string | null;
 }
 
-export type TabKey = "home" | "workers" | "payroll" | "trees" | "expenses" | "sales" | "settings";
+export type TabKey = "home" | "workers" | "tasks" | "payroll" | "trees" | "expenses" | "sales" | "settings";
 
 export interface RoleVisibility {
   home: boolean;
   workers: boolean;
+  tasks: boolean;
   payroll: boolean;
   trees: boolean;
   expenses: boolean;
@@ -178,4 +183,24 @@ export interface FarmSettings {
   exchangeRate: number;          // ៛ per $1, set manually by the owner
   payrollCycleStartDay: number;  // 1–28; e.g. 15 means the 15th–14th
   visibility: Partial<Record<Role, Partial<RoleVisibility>>>;
+}
+
+export type TaskStatus = "open" | "done" | "cancelled";
+export type TaskPriority = "low" | "normal" | "high";
+
+export interface Task {
+  id: string;
+  title: string;
+  description?: string | null;
+  careType?: CareType | null;
+  plot?: string | null;
+  treeId?: string | null;
+  workerId?: string | null;
+  assigneeId?: string | null;
+  dueDate?: string | null;
+  priority: TaskPriority;
+  status: TaskStatus;
+  completedAt?: string | null;
+  completedBy?: string | null;
+  createdBy?: string | null;
 }

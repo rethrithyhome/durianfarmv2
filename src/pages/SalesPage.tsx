@@ -14,11 +14,13 @@ import { LocationForm } from "@/components/sales/LocationForm";
 import { CustomerForm } from "@/components/sales/CustomerForm";
 import { SaleForm } from "@/components/sales/SaleForm";
 import type { Customer, FarmSettings, Role, Sale, SaleLocation } from "@/types/domain";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 
 type SortKey = "recent" | "amount";
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [{ key: "recent", label: "កាលបរិច្ឆេទ" }, { key: "amount", label: "ចំនួនទឹកប្រាក់" }];
 
 export function SalesPage({ role, farm }: { role: Role; farm: FarmSettings }) {
+  const confirm = useConfirm();
   const { profile } = useAuth();
   const enabled = !!profile?.farmId;
   const [sub, setSub] = useState<"locations" | "customers" | "revenue">("locations");
@@ -73,7 +75,7 @@ export function SalesPage({ role, farm }: { role: Role; farm: FarmSettings }) {
                   <div key={l.id} className="rounded-2xl p-3" style={{ background: C.card, border: `1px solid ${C.line}` }}>
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2"><Store size={15} color={C.greenMid} /><div className="text-sm font-semibold" style={{ color: C.ink }}>{l.name}</div></div>
-                      {can(role, "editLocation") && <div className="flex items-center gap-2"><button onClick={() => setLocModal({ mode: "edit", loc: l })}><Pencil size={13} color={C.inkSoft} /></button>{can(role, "deleteLocation") && <button onClick={() => deleteLoc.mutate(l.id)}><Trash2 size={13} color={C.red} /></button>}</div>}
+                      {can(role, "editLocation") && <div className="flex items-center gap-2"><button onClick={() => setLocModal({ mode: "edit", loc: l })}><Pencil size={13} color={C.inkSoft} /></button>{can(role, "deleteLocation") && <button onClick={async () => { if (await confirm({ title: "លុបទីតាំងលក់?", message: `លុប "${l.name}" ចេញពីប្រព័ន្ធ?`, confirmLabel: "លុប", danger: true })) deleteLoc.mutate(l.id); }}><Trash2 size={13} color={C.red} /></button>}</div>}
                     </div>
                     {l.area && <div className="text-[11px] mb-1.5" style={{ color: C.inkSoft }}>{l.area}</div>}
                     <div className="flex items-center gap-1.5 text-[11px]" style={{ color: C.inkSoft }}><Truck size={12} /> បានទទួល៖ {qty} ផ្លែ · {wt.toFixed(0)} kg</div>
@@ -104,7 +106,7 @@ export function SalesPage({ role, farm }: { role: Role; farm: FarmSettings }) {
                         <div className="text-sm font-semibold" style={{ color: C.ink }}>{cu.name}</div>
                         <Badge label={SALE_TYPES.find((t) => t.key === cu.type)?.label} color={cu.type === "wholesale" ? C.blue : C.goldDeep} />
                       </div>
-                      {can(role, "editCustomer") && <div className="flex items-center gap-2"><button onClick={() => setCustModal({ mode: "edit", cust: cu })}><Pencil size={13} color={C.inkSoft} /></button>{can(role, "deleteCustomer") && <button onClick={() => deleteCust.mutate(cu.id)}><Trash2 size={13} color={C.red} /></button>}</div>}
+                      {can(role, "editCustomer") && <div className="flex items-center gap-2"><button onClick={() => setCustModal({ mode: "edit", cust: cu })}><Pencil size={13} color={C.inkSoft} /></button>{can(role, "deleteCustomer") && <button onClick={async () => { if (await confirm({ title: "លុបអតិថិជន?", message: `លុប "${cu.name}" ចេញពីប្រព័ន្ធ? ប្រវត្តិការទិញនឹងលែងភ្ជាប់នឹងឈ្មោះនេះទៀត។`, confirmLabel: "លុប", danger: true })) deleteCust.mutate(cu.id); }}><Trash2 size={13} color={C.red} /></button>}</div>}
                     </div>
                     {(cu.phone || cu.address) && <div className="text-[11px] mb-1.5" style={{ color: C.inkSoft }}>{cu.phone}{cu.phone && cu.address ? " · " : ""}{cu.address}</div>}
                     <div className="text-[11px]" style={{ color: C.inkSoft }}>បានទិញ៖ {totalQty} ផ្លែ ក្នុង {purchases.length} ដង · សរុប <b style={{ color: C.greenMid }}>{fmtCurrency(totalSpent, "KHR")}</b></div>
@@ -134,7 +136,7 @@ export function SalesPage({ role, farm }: { role: Role; farm: FarmSettings }) {
                   <div key={s.id} className="rounded-2xl p-3" style={{ background: C.card, border: `1px solid ${C.line}` }}>
                     <div className="flex items-center justify-between mb-1">
                       <div className="text-xs font-semibold" style={{ color: C.ink }}>{cust ? cust.name : (loc ? loc.name : "—")} <Badge label={SALE_TYPES.find((t) => t.key === s.saleType)?.label} color={s.saleType === "wholesale" ? C.blue : C.goldDeep} /></div>
-                      <div className="flex items-center gap-2">{can(role, "editSale") && <button onClick={() => setSaleModal({ mode: "edit", sale: s })}><Pencil size={13} color={C.inkSoft} /></button>}{can(role, "deleteSale") && <button onClick={() => deleteSale.mutate(s.id)}><Trash2 size={13} color={C.red} /></button>}</div>
+                      <div className="flex items-center gap-2">{can(role, "editSale") && <button onClick={() => setSaleModal({ mode: "edit", sale: s })}><Pencil size={13} color={C.inkSoft} /></button>}{can(role, "deleteSale") && <button onClick={async () => { if (await confirm({ title: "លុបកំណត់ត្រាលក់?", message: "លុបការលក់នេះចេញពីប្រព័ន្ធ? ចំណូលនឹងត្រូវកាត់ចេញពីរបាយការណ៍។", confirmLabel: "លុប", danger: true })) deleteSale.mutate(s.id); }}><Trash2 size={13} color={C.red} /></button>}</div>
                     </div>
                     <div className="text-[11px]" style={{ color: C.inkSoft }}>{fmtDate(s.date)}{loc && cust ? ` · ${loc.name}` : ""} · {s.quantity} ផ្លែ · {s.weightKg || 0}kg · {fmtCurrency(s.unitPrice, s.currency)}/kg</div>
                     <div className="text-sm font-bold mt-1" style={{ color: C.greenMid }}>{fmtCurrency(s.totalRevenue, s.currency)}</div>

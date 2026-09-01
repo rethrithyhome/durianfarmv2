@@ -86,7 +86,7 @@ export async function decodeQrFromFile(file: File, onStatus?: (msg: string) => v
  * scan path — it works on every phone's built-in camera, not just an
  * in-app scanner. */
 export function treeDeepLink(treeId: string): string {
-  return `${window.location.origin}/trees/${treeId}`;
+  return `${window.location.origin}/trees/${treeId}?scanned=1`;
 }
 
 export function qrImageUrl(value: string, size = 220): string {

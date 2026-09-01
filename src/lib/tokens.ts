@@ -15,3 +15,18 @@ export const C = {
 export function tint(colorVar: string, percent: number): string {
   return `color-mix(in srgb, ${colorVar} ${percent}%, transparent)`;
 }
+
+/** Non-color design tokens, also driven by the active theme so switching
+ * theme changes shape and depth, not just hue. */
+export const R = {
+  base: "var(--r-base)",
+  lg: "var(--r-lg)",
+};
+export const SHADOW = {
+  card: "var(--shadow-card)",
+  float: "var(--shadow-float)",
+};
+export const FONT = {
+  app: "var(--font-app)",
+  headingWeight: "var(--font-heading-weight)" as unknown as number,
+};

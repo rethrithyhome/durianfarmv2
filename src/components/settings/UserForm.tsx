@@ -6,6 +6,7 @@ import { SheetModal } from "@/components/ui/SheetModal";
 import { Field, PrimaryButton, inputCls, inputStyle } from "@/components/ui/primitives";
 import { ROLES, SCOPED_ROLES } from "@/lib/permissions";
 import { C, tint } from "@/lib/tokens";
+import { errorMessage } from "@/lib/errors";
 
 interface Props {
   initial?: UserProfile;
@@ -44,7 +45,7 @@ export function UserForm({ initial, allPlots, onClose, onCreate, onUpdate }: Pro
         await onCreate({ name: name.trim(), email: email.trim(), password, role, plots: finalPlots });
         setCreated({ email: email.trim(), password, name: name.trim() });
       } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
+        setError(errorMessage(err));
       } finally { setBusy(false); }
     } else {
       setBusy(true);

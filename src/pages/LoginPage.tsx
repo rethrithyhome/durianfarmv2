@@ -3,6 +3,7 @@ import * as api from "@/api";
 import { C } from "@/lib/tokens";
 import { DurianMark } from "@/components/ui/DurianMark";
 import { Field, PrimaryButton, inputCls, inputStyle } from "@/components/ui/primitives";
+import { errorMessage } from "@/lib/errors";
 
 export function LoginPage({ farmName, logo }: { farmName?: string; logo?: string | null }) {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -27,7 +28,7 @@ export function LoginPage({ farmName, logo }: { farmName?: string; logo?: string
         setMode("signin");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "មានបញ្ហា សូមព្យាយាមម្តងទៀត");
+      setError(errorMessage(err));
     } finally { setBusy(false); }
   };
 

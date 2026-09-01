@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, QrCode, Pencil, Trash2, Flower2, Lock } from "lucide-react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { ArrowLeft, QrCode, Pencil, Trash2, Flower2, Lock, ScanLine, Droplet, Package } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTrees, useUpdateTree, useDeleteTree } from "@/hooks/useTrees";
 import { useCareLogs, useCreateCareLog, useDeleteCareLog, useCycles, useCreateCycle, useDeleteCycle, useEvents, useCreateEvent, useDeleteEvent } from "@/hooks/useYield";
@@ -19,9 +19,13 @@ import { CareForm } from "@/components/trees/CareForm";
 import { CycleForm } from "@/components/trees/CycleForm";
 import { EventForm } from "@/components/trees/EventForm";
 import type { Role } from "@/types/domain";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 
 export function TreeDetailPage({ role, scopedPlots }: { role: Role; scopedPlots: string[] }) {
+  const confirm = useConfirm();
   const { id } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const scanned = searchParams.get("scanned") === "1";
   const navigate = useNavigate();
   const { profile } = useAuth();
   const enabled = !!profile?.farmId;
@@ -89,6 +93,35 @@ export function TreeDetailPage({ role, scopedPlots }: { role: Role; scopedPlots:
         </div>
       </div>
 
+      {scanned && (canAddCare || canAddEvent) && (
+        <div className="rounded-2xl p-3 mb-3" style={{ background: tint(C.greenMid, 8), border: `1.5px solid ${tint(C.greenMid, 30)}` }}>
+          <div className="flex items-center gap-1.5 mb-2">
+            <ScanLine size={13} color={C.greenMid} />
+            <span className="text-[11px] font-semibold" style={{ color: C.greenMid }}>ស្កេនរួច — ចង់កត់ត្រាអ្វី?</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {canAddCare && (
+              <button onClick={() => setCareOpen(true)} className="flex items-center justify-center gap-2 py-3 text-xs font-semibold" style={{ background: C.green, color: "#fff", borderRadius: "var(--r-base)" }}>
+                <Droplet size={15} /> កត់ត្រាការថែទាំ
+              </button>
+            )}
+            {canAddEvent && cycles.length > 0 && (
+              <button onClick={() => setEventCycleId(cycles[0].id)} className="flex items-center justify-center gap-2 py-3 text-xs font-semibold" style={{ background: C.greenMid, color: "#fff", borderRadius: "var(--r-base)" }}>
+                <Package size={15} /> កត់ត្រាទិន្នផល
+              </button>
+            )}
+            {canAddCycle && cycles.length === 0 && (
+              <button onClick={() => setCycleOpen(true)} className="flex items-center justify-center gap-2 py-3 text-xs font-semibold" style={{ background: C.greenMid, color: "#fff", borderRadius: "var(--r-base)" }}>
+                <Package size={15} /> ចាប់ផ្តើមឆ្នាំថ្មី
+              </button>
+            )}
+          </div>
+          <button onClick={() => { searchParams.delete("scanned"); setSearchParams(searchParams, { replace: true }); }} className="w-full text-center text-[10.5px] mt-2" style={{ color: C.inkSoft }}>
+            បិទផ្ទាំងនេះ
+          </button>
+        </div>
+      )}
+
       {!inScope && (
         <div className="flex items-center gap-2 rounded-xl p-3 mb-3" style={{ background: tint(C.goldDeep, 8), border: `1px solid ${tint(C.goldDeep, 27)}` }}>
           <Lock size={14} color={C.goldDeep} /><div className="text-[11px]" style={{ color: C.brown }}>ដើមនេះនៅក្រៅតំបន់ដែលអ្នកគ្រប់គ្រង — អ្នកអាចមើលបានតែប៉ុណ្ណោះ</div>
@@ -130,7 +163,7 @@ export function TreeDetailPage({ role, scopedPlots }: { role: Role; scopedPlots:
                   <div><div className="text-sm font-bold" style={{ color: C.green }}>ឆ្នាំ {cy.year}</div>{cy.flowerDate && <div className="flex items-center gap-1 text-[10.5px]" style={{ color: C.goldDeep }}><Flower2 size={11} /> ចេញផ្កា៖ {fmtDate(cy.flowerDate)}</div>}</div>
                   <div className="flex items-center gap-2">
                     {canAddEvent && <button onClick={() => setEventCycleId(cy.id)} className="text-[11px] font-semibold" style={{ color: C.greenMid }}>+ កត់ត្រា</button>}
-                    {canManage && <button onClick={() => deleteCycleM.mutate(cy.id)}><Trash2 size={13} color={C.red} /></button>}
+                    {canManage && <button onClick={async () => { if (await confirm({ title: "លុបទិន្នផលឆ្នាំនេះ?", message: `លុបទិន្នផលឆ្នាំ ${cy.year} ទាំងអស់? កំណត់ត្រាផ្លែជ្រុះ ខូច និងបេះទាំងអស់ក្នុងឆ្នាំនេះនឹងបាត់។`, confirmLabel: "លុប", danger: true })) deleteCycleM.mutate(cy.id); }}><Trash2 size={13} color={C.red} /></button>}
                   </div>
                 </div>
                 <div className="text-[11px] mb-2" style={{ color: C.inkSoft }}>ចំនួនផ្លែតូចដំបូង៖ <b style={{ color: C.ink }}>{cy.initialCount}</b> · នៅសល់លើដើម៖ <b style={{ color: C.ink }}>{remaining}</b></div>
@@ -145,7 +178,7 @@ export function TreeDetailPage({ role, scopedPlots }: { role: Role; scopedPlots:
                     {harvestEvents.map((e) => (
                       <div key={e.id} className="flex items-center justify-between text-[10.5px]" style={{ color: C.inkSoft }}>
                         <span>{fmtDate(e.date)} · {e.quantity} ផ្លែ · {e.weightKg || 0}kg{e.destination ? ` · ${locationName(e.destination) ?? e.destination}` : ""}{e.workerId ? ` · ${workerName(e.workerId)}` : ""}</span>
-                        {canManage && <button onClick={() => deleteEventM.mutate(e.id)}><Trash2 size={11} color={C.red} /></button>}
+                        {canManage && <button onClick={async () => { if (await confirm({ title: "លុបកំណត់ត្រាប្រមូលផល?", message: "លុបកំណត់ត្រានេះចេញ? ចំនួនផ្លែនឹងគណនាឡើងវិញ។", confirmLabel: "លុប", danger: true })) deleteEventM.mutate(e.id); }}><Trash2 size={11} color={C.red} /></button>}
                       </div>
                     ))}
                   </div>
@@ -170,7 +203,7 @@ export function TreeDetailPage({ role, scopedPlots }: { role: Role; scopedPlots:
               <div key={c.id} className="flex items-center gap-2.5 rounded-2xl p-3" style={{ background: C.card, border: `1px solid ${C.line}` }}>
                 <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: tint(ci.color, 10) }}><Icon size={14} color={ci.color} /></div>
                 <div className="flex-1 min-w-0"><div className="text-xs font-medium" style={{ color: C.ink }}>{ci.label}</div><div className="text-[10.5px]" style={{ color: C.inkSoft }}>{fmtDate(c.date)} {c.workerId ? `· ${workerName(c.workerId)}` : ""}{c.note ? ` · ${c.note}` : ""}</div></div>
-                {canManage && <button onClick={() => deleteCareM.mutate(c.id)}><Trash2 size={13} color={C.red} /></button>}
+                {canManage && <button onClick={async () => { if (await confirm({ title: "លុបកំណត់ត្រាការថែទាំ?", message: "លុបកំណត់ត្រាការថែទាំនេះចេញពីប្រវត្តិដើមនេះ?", confirmLabel: "លុប", danger: true })) deleteCareM.mutate(c.id); }}><Trash2 size={13} color={C.red} /></button>}
               </div>
             );
           })}

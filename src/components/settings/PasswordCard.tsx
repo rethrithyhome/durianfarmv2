@@ -2,6 +2,7 @@ import { useState } from "react";
 import * as api from "@/api";
 import { Field, PrimaryButton, inputCls, inputStyle } from "@/components/ui/primitives";
 import { C, tint } from "@/lib/tokens";
+import { errorMessage } from "@/lib/errors";
 
 export function PasswordCard() {
   const [open, setOpen] = useState(false);
@@ -21,7 +22,7 @@ export function PasswordCard() {
       setPw(""); setPw2("");
       setTimeout(() => { setOpen(false); setMsg(null); }, 1500);
     } catch (err) {
-      setMsg({ ok: false, text: err instanceof Error ? err.message : String(err) });
+      setMsg({ ok: false, text: errorMessage(err) });
     } finally { setBusy(false); }
   };
 

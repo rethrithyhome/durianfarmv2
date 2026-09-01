@@ -1,7 +1,16 @@
 @import url('https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
-* { font-family: 'Kantumruy Pro', sans-serif; box-sizing: border-box; }
+:root {
+  --font-app: 'Kantumruy Pro', sans-serif;
+  --font-heading-weight: 800;
+  --r-base: 1rem;
+  --r-lg: 1.5rem;
+  --shadow-card: 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-float: 0 8px 30px rgba(0,0,0,0.16);
+}
+
+* { font-family: var(--font-app); box-sizing: border-box; }
 html, body, #root { margin: 0; padding: 0; min-height: 100vh; }
 ::-webkit-scrollbar { display: none; }
 

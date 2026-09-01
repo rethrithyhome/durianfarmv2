@@ -12,4 +12,6 @@ export const qk = {
   payroll: ["payroll"] as const,
   users: ["users"] as const,
   farm: ["farm"] as const,
+  audit: ["audit"] as const,
+  tasks: ["tasks"] as const,
 };

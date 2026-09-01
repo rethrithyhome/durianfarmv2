@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { C, tint } from "@/lib/tokens";
+import { C, tint, R, SHADOW } from "@/lib/tokens";
 
 export function Badge({ label, color, size = "sm" }: { label?: string; color: string; size?: "sm" | "md" }) {
   return (
@@ -16,12 +16,12 @@ export function Badge({ label, color, size = "sm" }: { label?: string; color: st
 export function StatCard({ label, value, sub, accent, icon: Icon }: { label: string; value: string | number; sub?: string; accent?: string; icon?: LucideIcon }) {
   const tone = accent || C.green;
   return (
-    <div className="relative rounded-2xl p-3.5 overflow-hidden" style={{ background: C.card, border: `1px solid ${C.line}`, boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
+    <div className="relative p-3.5 overflow-hidden" style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: R.lg, boxShadow: SHADOW.card }}>
       <div className="absolute left-0 top-0 bottom-0 w-1" style={{ background: tone }} />
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="text-[11px]" style={{ color: C.inkSoft }}>{label}</div>
-          <div className="text-2xl mt-0.5 leading-tight" style={{ color: tone, fontFamily: "'Kantumruy Pro', sans-serif", fontWeight: 800, letterSpacing: "-0.02em" }}>{value}</div>
+          <div className="text-2xl mt-0.5 leading-tight" style={{ color: tone, fontWeight: "var(--font-heading-weight)" as never, letterSpacing: "-0.02em" }}>{value}</div>
           {sub && <div className="text-[11px] mt-0.5" style={{ color: C.inkSoft }}>{sub}</div>}
         </div>
         {Icon && (
@@ -51,11 +51,13 @@ export function PrimaryButton({ children, onClick, full, danger, disabled }: { c
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`${full ? "w-full" : ""} rounded-xl px-4 py-2.5 text-sm flex items-center justify-center gap-1.5 disabled:opacity-60`}
+      className={`${full ? "w-full" : ""} px-4 py-2.5 text-sm flex items-center justify-center gap-1.5 disabled:opacity-60`}
       style={{
         background: danger ? C.red : `linear-gradient(135deg, ${C.green}, ${C.greenMid})`,
         color: "#fff",
         fontWeight: 700,
+        borderRadius: R.base,
+        boxShadow: SHADOW.card,
       }}
     >
       {children}
@@ -66,7 +68,7 @@ export function PrimaryButton({ children, onClick, full, danger, disabled }: { c
 export function EmptyState({ icon: Icon, title, hint }: { icon: LucideIcon; title: string; hint: string }) {
   return (
     <div className="flex flex-col items-center justify-center text-center py-14 px-6">
-      <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3" style={{ background: C.bgAlt }}><Icon size={24} color={C.goldDeep} /></div>
+      <div className="w-14 h-14 flex items-center justify-center mb-3" style={{ background: C.bgAlt, borderRadius: R.lg }}><Icon size={24} color={C.goldDeep} /></div>
       <div className="font-semibold text-sm" style={{ color: C.green }}>{title}</div>
       <div className="text-xs mt-1 max-w-xs" style={{ color: C.inkSoft }}>{hint}</div>
     </div>

@@ -32,10 +32,12 @@ export function usePayrollPayments(enabled: boolean) {
 export function useCreatePayrollPayment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (p: Partial<PayrollPayment>) => api.createPayrollPayment(p),
+    mutationFn: ({ payment, workLogIds }: { payment: Partial<PayrollPayment>; workLogIds?: string[] }) =>
+      api.createPayrollPayment(payment, workLogIds ?? []),
     onSuccess: (saved) => {
       qc.setQueryData<PayrollPayment[]>(qk.payroll, (prev) => [saved, ...(prev ?? [])]);
-      // A payment also creates an expense, so refresh those totals too.
+      // Paying also stamps work logs and creates an expense.
+      qc.invalidateQueries({ queryKey: qk.workLogs });
       qc.invalidateQueries({ queryKey: qk.expenses });
     },
   });
@@ -46,6 +48,7 @@ export function useDeletePayrollPayment() {
     mutationFn: api.deletePayrollPayment,
     onSuccess: (_v, id) => {
       qc.setQueryData<PayrollPayment[]>(qk.payroll, (prev) => (prev ?? []).filter((x) => x.id !== id));
+      qc.invalidateQueries({ queryKey: qk.workLogs });
     },
   });
 }

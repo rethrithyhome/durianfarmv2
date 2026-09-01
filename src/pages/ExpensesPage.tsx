@@ -12,6 +12,7 @@ import { EmptyState, FilterChip } from "@/components/ui/primitives";
 import { SortMenu } from "@/components/ui/SortMenu";
 import { ExpenseForm } from "@/components/expenses/ExpenseForm";
 import type { Expense, FarmSettings, Role } from "@/types/domain";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 
 type SortKey = "recent" | "amount" | "category";
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
@@ -19,6 +20,7 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
 ];
 
 export function ExpensesPage({ role, farm }: { role: Role; farm: FarmSettings }) {
+  const confirm = useConfirm();
   const { profile } = useAuth();
   const enabled = !!profile?.farmId;
   const expensesQ = useExpenses(enabled);
@@ -69,7 +71,7 @@ export function ExpensesPage({ role, farm }: { role: Role; farm: FarmSettings })
               <div className="flex-1 min-w-0"><div className="text-xs font-semibold" style={{ color: C.ink }}>{expenseInfo(e.category).label}</div><div className="text-[10.5px]" style={{ color: C.inkSoft }}>{fmtDate(e.date)}{e.note ? ` · ${e.note}` : ""}</div></div>
               <div className="text-sm font-bold shrink-0" style={{ color: C.red }}>{fmtCurrency(e.amount, e.currency)}</div>
               {can(role, "editExpense") && <button onClick={() => setModal({ mode: "edit", expense: e })}><Pencil size={13} color={C.inkSoft} /></button>}
-              {can(role, "deleteExpense") && <button onClick={() => deleteM.mutate(e.id)}><Trash2 size={13} color={C.red} /></button>}
+              {can(role, "deleteExpense") && <button onClick={async () => { if (await confirm({ title: "លុបកំណត់ត្រាចំណាយ?", message: `លុបចំណាយ "${expenseInfo(e.category).label}" ចេញពីប្រព័ន្ធ? សកម្មភាពនេះមិនអាចត្រឡប់វិញបានទេ។`, confirmLabel: "លុប", danger: true })) deleteM.mutate(e.id); }}><Trash2 size={13} color={C.red} /></button>}
             </div>
           ))}
         </div>

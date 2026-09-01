@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "./index.css";
 import App from "./App.tsx";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ConfirmProvider } from "@/components/ui/ConfirmDialog";
 import { applyThemeVars, DEFAULT_THEME } from "@/lib/theme";
 
 // Apply a default theme's CSS variables immediately, before the first
@@ -21,7 +22,9 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <App />
+        <ConfirmProvider>
+          <App />
+        </ConfirmProvider>
       </AuthProvider>
     </QueryClientProvider>
   </StrictMode>

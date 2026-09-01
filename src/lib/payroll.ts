@@ -45,3 +45,22 @@ export function shiftCycle(cycle: PayrollCycle, startDay: number, offset: number
 export function isInCycle(dateISO: string, cycle: PayrollCycle): boolean {
   return dateISO >= cycle.start && dateISO <= cycle.end;
 }
+
+function daysBetween(startISO: string, endISO: string): number {
+  const ms = new Date(endISO).getTime() - new Date(startISO).getTime();
+  return Math.round(ms / 86400000) + 1; // inclusive of both ends
+}
+
+/**
+ * The fraction of a cycle a salaried worker was actually employed for.
+ * Someone who started mid-cycle gets a proportional share of that first
+ * month rather than the full salary; everyone else gets 1.
+ */
+export function cycleWorkedFraction(cycle: PayrollCycle, startDate?: string | null): number {
+  if (!startDate) return 1;
+  if (startDate <= cycle.start) return 1;      // already employed before this cycle
+  if (startDate > cycle.end) return 0;         // hadn't started yet
+  const total = daysBetween(cycle.start, cycle.end);
+  const worked = daysBetween(startDate, cycle.end);
+  return total > 0 ? worked / total : 1;
+}

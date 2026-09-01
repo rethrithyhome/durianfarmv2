@@ -27,6 +27,7 @@ export function WorkerForm({ initial, allowedPlots, exchangeRate, canSetWage, on
   const [wageType, setWageType] = useState<WageType>(initial?.wageType ?? "hourly");
   const [wageRate, setWageRate] = useState(initial?.wageRate?.toString() ?? "");
   const [wageCurrency, setWageCurrency] = useState<Currency>(initial?.wageCurrency ?? "KHR");
+  const [startDate, setStartDate] = useState(initial?.startDate ?? "");
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
@@ -36,7 +37,7 @@ export function WorkerForm({ initial, allowedPlots, exchangeRate, canSetWage, on
       await onSubmit({
         ...(initial ?? {}), name: name.trim(), phone: phone.trim(), position: position.trim(),
         specialty: specialty.trim(), plot: plot.trim(), status, notes: notes.trim(), photo,
-        wageType, wageRate: Number(wageRate) || 0, wageCurrency,
+        wageType, wageRate: Number(wageRate) || 0, wageCurrency, startDate: startDate || null,
       });
       onClose();
     } finally { setBusy(false); }
@@ -67,6 +68,14 @@ export function WorkerForm({ initial, allowedPlots, exchangeRate, canSetWage, on
             onCurrencyChange={setWageCurrency}
             placeholder={wageType === "monthly" ? "ឧ. 1200000" : "ឧ. 5000"}
           />
+          {wageType === "monthly" && (
+            <Field label="ថ្ងៃចូលធ្វើការ">
+              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inputCls} style={inputStyle} />
+              <div className="text-[10.5px] mt-1" style={{ color: C.inkSoft }}>
+                បើចូលធ្វើការពាក់កណ្តាលខួប ប្រាក់ខែនឹងគណនាតាមសមាមាត្រថ្ងៃដែលបានធ្វើ
+              </div>
+            </Field>
+          )}
         </>
       )}
 

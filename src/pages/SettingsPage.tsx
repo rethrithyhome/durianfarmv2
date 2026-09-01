@@ -1,234 +1,143 @@
-import { useId, useMemo, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
-import { ImagePlus, UserPlus, Pencil, Trash2, Eye, EyeOff, LogOut, FileText, Printer } from "lucide-react";
+import {
+  Building2, Palette, Coins, Users as UsersIcon, Eye, FileText, Printer, History,
+  KeyRound, AlertTriangle, LogOut, ChevronRight, ArrowLeft, Map,
+  type LucideIcon,
+} from "lucide-react";
 import * as api from "@/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { useFarmSettings, useUpdateFarmSettings } from "@/hooks/useFarmSettings";
-import { useUsers, useCreateUser, useUpdateUser, useRemoveUser } from "@/hooks/useUsers";
-import { useTrees } from "@/hooks/useTrees";
-import { can, roleInfo, APP_TABS, VISIBILITY_ROLES, SCOPED_ROLES } from "@/lib/permissions";
-import { compressImageFile } from "@/lib/image";
+import { useUpdateFarmSettings } from "@/hooks/useFarmSettings";
+import { can, SCOPED_ROLES } from "@/lib/permissions";
 import { C, tint } from "@/lib/tokens";
-import { Field, PrimaryButton, inputCls, inputStyle, Badge } from "@/components/ui/primitives";
-import { SheetModal } from "@/components/ui/SheetModal";
-import { DurianMark } from "@/components/ui/DurianMark";
+import { FarmInfoSection } from "@/components/settings/FarmInfoSection";
+import { CurrencySection } from "@/components/settings/CurrencySection";
+import { UsersSection } from "@/components/settings/UsersSection";
+import { VisibilitySection } from "@/components/settings/VisibilitySection";
+import { DangerSection } from "@/components/settings/DangerSection";
 import { ThemePicker } from "@/components/settings/ThemePicker";
-import { UserForm } from "@/components/settings/UserForm";
 import { PasswordCard } from "@/components/settings/PasswordCard";
-import type { FarmSettings, Role, RoleVisibility, UserProfile } from "@/types/domain";
+import type { FarmSettings, Role } from "@/types/domain";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
+
+type SectionKey = "farm" | "theme" | "currency" | "users" | "visibility" | "plots" | "password" | "danger";
+
+interface SectionDef {
+  key: SectionKey;
+  label: string;
+  desc: string;
+  icon: LucideIcon;
+  show: boolean;
+  tone?: string;
+}
 
 export function SettingsPage({ role, farm }: { role: Role; farm: FarmSettings }) {
+  const confirm = useConfirm();
   const { profile } = useAuth();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const enabled = !!profile?.farmId;
   const updateFarmM = useUpdateFarmSettings();
-  const usersQ = useUsers(enabled && can(role, "viewUsers"));
-  const treesQ = useTrees(enabled);
-  const createUserM = useCreateUser();
-  const updateUserM = useUpdateUser();
-  const removeUserM = useRemoveUser();
+  const [open, setOpen] = useState<SectionKey | null>(null);
 
-  const [name, setName] = useState(farm.farmName);
-  const [ownerPin, setOwnerPin] = useState(farm.ownerPin);
-  const [rate, setRate] = useState(farm.exchangeRate.toString());
-  const [cycleDay, setCycleDay] = useState(farm.payrollCycleStartDay.toString());
-  const [logoBusy, setLogoBusy] = useState(false);
-  const logoInputId = useId();
-  const [confirmReset, setConfirmReset] = useState(false);
-  const [resetTyped, setResetTyped] = useState("");
-  const [resetBusy, setResetBusy] = useState(false);
-  const [resetError, setResetError] = useState("");
-  const [confirmDelUser, setConfirmDelUser] = useState<UserProfile | null>(null);
-  const [userModal, setUserModal] = useState<{ mode: "add" | "edit"; user?: UserProfile } | null>(null);
+  const allSections: SectionDef[] = [
+    { key: "farm", label: "ព័ត៌មានចម្ការ", desc: "ឈ្មោះ, Logo, PIN", icon: Building2, show: true },
+    { key: "theme", label: "ពណ៌ Interface", desc: "ជ្រើសរើសរចនាបថពណ៌", icon: Palette, show: can(role, "settings") },
+    { key: "currency", label: "រូបិយប័ណ្ណ & ខួបប្រាក់ឈ្នួល", desc: "អត្រាប្តូរប្រាក់, ថ្ងៃចាប់ផ្តើមខួប", icon: Coins, show: can(role, "settings") },
+    { key: "users", label: "អ្នកប្រើប្រាស់ប្រព័ន្ធ", desc: "បន្ថែម និងកំណត់តួនាទី", icon: UsersIcon, show: can(role, "viewUsers") },
+    { key: "visibility", label: "ការបង្ហាញតាមតួនាទី", desc: "កំណត់អ្វីដែលនីមួយៗឃើញ", icon: Eye, show: can(role, "manageVisibility") },
+    { key: "plots", label: "តំបន់ដែលអ្នកគ្រប់គ្រង", desc: "ចម្រៀកដែលបានចាត់តាំង", icon: Map, show: SCOPED_ROLES.includes(role) },
+    { key: "password", label: "ពាក្យសម្ងាត់របស់ខ្ញុំ", desc: "ប្តូរដោយខ្លួនឯង", icon: KeyRound, show: true },
+    { key: "danger", label: "តំបន់គ្រោះថ្នាក់", desc: "លុបទិន្នន័យទាំងអស់", icon: AlertTriangle, show: can(role, "resetData"), tone: C.red },
+  ];
+  const sections = allSections.filter((s) => s.show);
 
-  const users = usersQ.data ?? [];
-  const allPlots = useMemo(() => Array.from(new Set((treesQ.data ?? []).map((t) => t.plot).filter((p): p is string => !!p))).sort(), [treesQ.data]);
+  const current = sections.find((s) => s.key === open);
 
-  const handleLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]; e.target.value = "";
-    if (!file) return;
-    setLogoBusy(true);
-    try {
-      const compressed = await compressImageFile(file, 300, 0.75);
-      const url = await api.uploadPhoto(compressed, "logos");
-      await updateFarmM.mutateAsync({ logo: url });
-    } catch (err) { console.error(err); }
-    finally { setLogoBusy(false); }
-  };
+  // Detail view — one section at a time, so the settings screen isn't a
+  // single long wall of unrelated controls.
+  if (current) {
+    return (
+      <div className="pt-1 pb-4">
+        <button onClick={() => setOpen(null)} className="flex items-center gap-1 text-xs font-medium mb-3" style={{ color: C.greenMid }}>
+          <ArrowLeft size={15} /> ត្រឡប់ទៅកំណត់
+        </button>
+        <div className="flex items-center gap-2.5 mb-3">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: tint(current.tone ?? C.green, 12) }}>
+            <current.icon size={17} color={current.tone ?? C.green} />
+          </div>
+          <div>
+            <div className="text-sm font-bold" style={{ color: current.tone ?? C.green }}>{current.label}</div>
+            <div className="text-[11px]" style={{ color: C.inkSoft }}>{current.desc}</div>
+          </div>
+        </div>
 
-  const toggleVisibility = (roleKey: Role, tabKey: keyof RoleVisibility) => {
-    const roleVis = farm.visibility[roleKey] ?? {};
-    const visible = roleVis[tabKey] !== false;
-    updateFarmM.mutate({ visibility: { ...farm.visibility, [roleKey]: { ...roleVis, [tabKey]: !visible } } });
-  };
+        {open === "farm" && <FarmInfoSection role={role} farm={farm} />}
+        {open === "theme" && <ThemePicker current={farm.theme} onChange={(key) => updateFarmM.mutate({ theme: key })} />}
+        {open === "currency" && <CurrencySection farm={farm} />}
+        {open === "users" && <UsersSection role={role} />}
+        {open === "visibility" && <VisibilitySection farm={farm} />}
+        {open === "password" && <PasswordCard />}
+        {open === "danger" && <DangerSection />}
+        {open === "plots" && profile && (
+          <div className="rounded-2xl p-4" style={{ background: C.card, border: `1px solid ${C.line}` }}>
+            {profile.plots.length === 0 ? (
+              <div className="text-[11px]" style={{ color: C.inkSoft }}>មិនទាន់មានតំបន់កំណត់ទេ</div>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {profile.plots.map((p) => (
+                  <span key={p} className="rounded-full px-2.5 py-1 text-[11px] font-medium" style={{ background: tint(C.greenMid, 10), color: C.greenMid }}>{p}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
 
-  const resetAllData = async () => {
-    if (resetTyped.trim() !== "លុប") { setResetError('សូមវាយពាក្យ "លុប" ដើម្បីបញ្ជាក់'); return; }
-    setResetBusy(true); setResetError("");
-    try {
-      await api.resetFarmData();
-      await queryClient.invalidateQueries();
-      setConfirmReset(false); setResetTyped("");
-    } catch (err) {
-      setResetError(err instanceof Error ? err.message : String(err));
-    } finally { setResetBusy(false); }
-  };
-
+  // Menu view
   return (
     <div className="pt-1 pb-4 space-y-4">
-      <div className="rounded-2xl p-4" style={{ background: C.card, border: `1px solid ${C.line}` }}>
-        <div className="text-sm font-semibold mb-3" style={{ color: C.green }}>ព័ត៌មានចម្ការ</div>
-        {can(role, "settings") && (
-          <div className="flex items-center gap-3 mb-4">
-            {farm.logo ? <img src={farm.logo} alt="logo" className="w-14 h-14 rounded-2xl object-cover" style={{ border: `1px solid ${C.line}` }} /> : <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: C.bgAlt }}><DurianMark size={34} /></div>}
-            <div className="flex-1">
-              <div className="flex gap-2">
-                <label htmlFor={logoInputId} className="rounded-xl px-3 py-1.5 text-[11px] font-semibold cursor-pointer flex items-center gap-1" style={{ background: C.bgAlt, color: C.green }}><ImagePlus size={12} /> {logoBusy ? "កំពុងផ្ទុក..." : "ប្តូរ Logo"}</label>
-                {farm.logo && <button onClick={() => updateFarmM.mutate({ logo: null })} className="rounded-xl px-3 py-1.5 text-[11px] font-semibold" style={{ background: tint(C.red, 8), color: C.red }}>ប្រើលំនាំដើម</button>}
+      {can(role, "viewReports") && (
+        <div className="grid grid-cols-2 gap-2.5">
+          <button onClick={() => navigate("/print-qr")} className="flex items-center gap-2 rounded-2xl px-3 py-3 text-xs font-semibold" style={{ background: C.card, border: `1px solid ${C.line}`, color: C.green }}>
+            <Printer size={15} /> បោះពុម្ព QR
+          </button>
+          <button onClick={() => navigate("/reports")} className="flex items-center gap-2 rounded-2xl px-3 py-3 text-xs font-semibold" style={{ background: C.card, border: `1px solid ${C.line}`, color: C.green }}>
+            <FileText size={15} /> របាយការណ៍
+          </button>
+          <button onClick={() => navigate("/audit")} className="flex items-center gap-2 rounded-2xl px-3 py-3 text-xs font-semibold col-span-2" style={{ background: C.card, border: `1px solid ${C.line}`, color: C.green }}>
+            <History size={15} /> ប្រវត្តិកែប្រែទិន្នន័យ
+          </button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        {sections.map((s) => {
+          const Icon = s.icon;
+          const tone = s.tone ?? C.green;
+          return (
+            <button
+              key={s.key}
+              onClick={() => setOpen(s.key)}
+              className="flex items-center gap-3 rounded-2xl p-3.5 text-left"
+              style={{ background: C.card, border: `1px solid ${s.tone ? tint(C.red, 20) : C.line}` }}
+            >
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: tint(tone, 12) }}>
+                <Icon size={18} color={tone} />
               </div>
-              <input id={logoInputId} type="file" accept="image/*" className="hidden" onChange={handleLogoFile} disabled={logoBusy} />
-            </div>
-          </div>
-        )}
-        <Field label="ឈ្មោះចម្ការ"><input value={name} onChange={(e) => setName(e.target.value)} className={inputCls} style={inputStyle} disabled={!can(role, "settings")} /></Field>
-        {can(role, "settings") && (
-          <Field label="PIN ម្ចាស់ចម្ការ (ស្រេចចិត្ត)"><input type="password" inputMode="numeric" maxLength={6} value={ownerPin} onChange={(e) => setOwnerPin(e.target.value.replace(/\D/g, ""))} placeholder="ទុកទទេប្រសិនបើមិនត្រូវការ" className={inputCls} style={inputStyle} /></Field>
-        )}
-        {can(role, "settings") && <PrimaryButton onClick={() => updateFarmM.mutate({ farmName: name, ownerPin: ownerPin.trim() })}>រក្សាទុក</PrimaryButton>}
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold truncate" style={{ color: tone }}>{s.label}</div>
+                <div className="text-[11px] truncate" style={{ color: C.inkSoft }}>{s.desc}</div>
+              </div>
+              <ChevronRight size={16} color={C.inkSoft} />
+            </button>
+          );
+        })}
       </div>
 
-      {can(role, "settings") && <ThemePicker current={farm.theme} onChange={(key) => updateFarmM.mutate({ theme: key })} />}
-
-      {can(role, "settings") && (
-        <div className="rounded-2xl p-4" style={{ background: C.card, border: `1px solid ${C.line}` }}>
-          <div className="text-sm font-semibold mb-1" style={{ color: C.green }}>រូបិយប័ណ្ណ និងប្រាក់ឈ្នួល</div>
-          <div className="text-[11px] mb-3" style={{ color: C.inkSoft }}>របាយការណ៍ទាំងអស់គិតជាប្រាក់រៀល (៛) ជាគោល</div>
-          <Field label="អត្រាប្តូរប្រាក់ ($1 = ៛?)">
-            <input type="number" min="1" step="1" value={rate} onChange={(e) => setRate(e.target.value)} className={inputCls} style={inputStyle} placeholder="4100" />
-          </Field>
-          <Field label="ថ្ងៃចាប់ផ្តើមខួបប្រាក់ឈ្នួល (1–28)">
-            <input type="number" min="1" max="28" step="1" value={cycleDay} onChange={(e) => setCycleDay(e.target.value)} className={inputCls} style={inputStyle} placeholder="1" />
-            <div className="text-[10.5px] mt-1" style={{ color: C.inkSoft }}>ឧ. ដាក់ 15 → ខួបគឺ ១៥ ដល់ ១៤ ខែបន្ទាប់។ ដាក់ 1 → ដើមខែដល់ចុងខែ</div>
-          </Field>
-          <PrimaryButton onClick={() => updateFarmM.mutate({ exchangeRate: Number(rate) || 4100, payrollCycleStartDay: Math.min(Math.max(Number(cycleDay) || 1, 1), 28) })}>រក្សាទុក</PrimaryButton>
-        </div>
-      )}
-
-      {can(role, "viewReports") && (
-        <div className="rounded-2xl p-4" style={{ background: C.card, border: `1px solid ${C.line}` }}>
-          <div className="text-sm font-semibold mb-3" style={{ color: C.green }}>របាយការណ៍ & បោះពុម្ព</div>
-          <div className="space-y-2">
-            <button onClick={() => navigate("/print-qr")} className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-semibold" style={{ background: C.bgAlt, color: C.green }}><Printer size={15} /> បោះពុម្ព QR Code ដើមទាំងអស់</button>
-            <button onClick={() => navigate("/reports")} className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-semibold" style={{ background: C.bgAlt, color: C.green }}><FileText size={15} /> មើលរបាយការណ៍</button>
-          </div>
-        </div>
-      )}
-
-      {SCOPED_ROLES.includes(role) && profile && (
-        <div className="rounded-2xl p-4" style={{ background: C.card, border: `1px solid ${C.line}` }}>
-          <div className="text-sm font-semibold mb-2" style={{ color: C.green }}>តំបន់ដែលអ្នកគ្រប់គ្រង</div>
-          {profile.plots.length === 0 ? <div className="text-[11px]" style={{ color: C.inkSoft }}>មិនទាន់មានតំបន់កំណត់ទេ</div> : (
-            <div className="flex flex-wrap gap-1.5">{profile.plots.map((p) => <span key={p} className="rounded-full px-2.5 py-1 text-[11px] font-medium" style={{ background: tint(C.greenMid, 10), color: C.greenMid }}>{p}</span>)}</div>
-          )}
-        </div>
-      )}
-
-      {can(role, "viewUsers") && (
-        <div className="rounded-2xl p-4" style={{ background: C.card, border: `1px solid ${C.line}` }}>
-          <div className="flex items-center justify-between mb-3">
-            <div className="text-sm font-semibold" style={{ color: C.green }}>អ្នកប្រើប្រាស់ប្រព័ន្ធ</div>
-            {can(role, "manageUsers") && <button onClick={() => setUserModal({ mode: "add" })} className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ background: C.green, color: "#fff" }}><UserPlus size={12} /> បន្ថែម</button>}
-          </div>
-          {users.length === 0 ? <div className="text-[11px]" style={{ color: C.inkSoft }}>មិនទាន់មានអ្នកប្រើប្រាស់ទេ</div> : (
-            <div className="space-y-2">
-              {users.map((u) => {
-                const ri = roleInfo(u.role); const RIcon = ri.icon;
-                return (
-                  <div key={u.id} className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center shrink-0" style={{ background: C.bgAlt }}>{u.photo ? <img src={u.photo} className="w-full h-full object-cover" alt="" /> : <RIcon size={14} color={C.greenMid} />}</div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-semibold truncate" style={{ color: C.ink }}>{u.name} {u.status === "inactive" && <Badge label="អសកម្ម" color={C.red} />}</div>
-                      <div className="text-[10.5px] truncate" style={{ color: C.inkSoft }}>{ri.label}{u.phone ? ` · ${u.phone}` : ""}{u.plots.length > 0 ? ` · ${u.plots.join(", ")}` : ""}</div>
-                    </div>
-                    {can(role, "manageUsers") && <div className="flex items-center gap-2 shrink-0"><button onClick={() => setUserModal({ mode: "edit", user: u })}><Pencil size={13} color={C.inkSoft} /></button><button onClick={() => setConfirmDelUser(u)}><Trash2 size={13} color={C.red} /></button></div>}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {can(role, "manageVisibility") && (
-        <div className="rounded-2xl p-4" style={{ background: C.card, border: `1px solid ${C.line}` }}>
-          <div className="text-sm font-semibold mb-1" style={{ color: C.green }}>ការកំណត់ការបង្ហាញទិន្នន័យ តាមតួនាទី</div>
-          <div className="text-[11px] mb-3" style={{ color: C.inkSoft }}>ជ្រើសរើសផ្នែកដែលនីមួយៗតួនាទីអាចមើលឃើញនៅក្នុងកម្មវិធី។ ម្ចាស់ចម្ការមើលឃើញគ្រប់ផ្នែកជានិច្ច។</div>
-          <div className="space-y-3.5">
-            {VISIBILITY_ROLES.map((rk) => {
-              const ri = roleInfo(rk); const RIcon = ri.icon;
-              const roleVis = farm.visibility[rk] ?? {};
-              const allowedTabs = APP_TABS.filter((t) => can(rk, t.need));
-              return (
-                <div key={rk}>
-                  <div className="flex items-center gap-1.5 mb-1.5"><RIcon size={13} color={C.greenMid} /><span className="text-xs font-semibold" style={{ color: C.ink }}>{ri.label}</span></div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {allowedTabs.map((t) => {
-                      const visible = roleVis[t.key as keyof RoleVisibility] !== false;
-                      return (
-                        <button key={t.key} onClick={() => toggleVisibility(rk, t.key as keyof RoleVisibility)} className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[10.5px] font-medium" style={{ background: visible ? tint(C.greenMid, 10) : C.bgAlt, color: visible ? C.greenMid : C.inkSoft }}>
-                          {visible ? <Eye size={11} /> : <EyeOff size={11} />} {t.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {can(role, "resetData") && (
-        <div className="rounded-2xl p-4" style={{ background: tint(C.red, 5), border: `1px solid ${tint(C.red, 20)}` }}>
-          <div className="text-sm font-semibold mb-1" style={{ color: C.red }}>តំបន់គ្រោះថ្នាក់</div>
-          <div className="text-[11px] mb-3" style={{ color: C.inkSoft }}>លុបទិន្នន័យប្រតិបត្តិការទាំងអស់ (កម្មករ, ដើម, ចំណាយ, ការលក់) — មិនប៉ះពាល់គណនីអ្នកប្រើប្រាស់ទេ</div>
-          {!confirmReset ? (
-            <button onClick={() => setConfirmReset(true)} className="text-xs font-semibold" style={{ color: C.red }}>លុបទិន្នន័យទាំងអស់...</button>
-          ) : (
-            <div>
-              <div className="text-[11px] mb-2" style={{ color: C.brown }}>វាយពាក្យ <b>លុប</b> ខាងក្រោម ដើម្បីបញ្ជាក់ — សកម្មភាពនេះមិនអាចត្រឡប់វិញបានទេ</div>
-              <input value={resetTyped} onChange={(e) => setResetTyped(e.target.value)} className={inputCls} style={{ ...inputStyle, marginBottom: 10 }} placeholder="លុប" />
-              {resetError && <div className="text-[11px] mb-2" style={{ color: C.red }}>{resetError}</div>}
-              <div className="flex gap-2">
-                <button onClick={() => { setConfirmReset(false); setResetTyped(""); setResetError(""); }} className="flex-1 rounded-xl py-2 text-xs font-semibold" style={{ background: C.bgAlt, color: C.ink }}>បោះបង់</button>
-                <button onClick={resetAllData} disabled={resetBusy} className="flex-1 rounded-xl py-2 text-xs font-semibold disabled:opacity-60" style={{ background: C.red, color: "#fff" }}>{resetBusy ? "កំពុងលុប..." : "បញ្ជាក់ការលុប"}</button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      <PasswordCard />
-
-      <button onClick={() => api.signOut()} className="w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-semibold" style={{ background: C.bgAlt, color: C.red }}><LogOut size={14} /> ចាកចេញ</button>
-
-      {confirmDelUser && (
-        <SheetModal title="លុបអ្នកប្រើប្រាស់?" onClose={() => setConfirmDelUser(null)}>
-          <p className="text-xs mb-4" style={{ color: C.inkSoft }}>លុប &quot;{confirmDelUser.name}&quot; ចេញពីប្រព័ន្ធ?</p>
-          <div className="flex gap-2"><button onClick={() => setConfirmDelUser(null)} className="flex-1 rounded-xl py-2.5 text-sm font-semibold" style={{ background: C.bgAlt, color: C.ink }}>បោះបង់</button><PrimaryButton danger full onClick={() => { removeUserM.mutate(confirmDelUser.id); setConfirmDelUser(null); }}>លុប</PrimaryButton></div>
-        </SheetModal>
-      )}
-      {userModal && (
-        <UserForm
-          initial={userModal.user}
-          allPlots={allPlots}
-          onClose={() => setUserModal(null)}
-          onCreate={(input) => createUserM.mutateAsync(input)}
-          onUpdate={(input) => updateUserM.mutateAsync(input)}
-        />
-      )}
+      <button onClick={async () => { if (await confirm({ title: "ចាកចេញពីគណនី?", message: "អ្នកនឹងត្រូវបញ្ចូល email និងពាក្យសម្ងាត់ម្តងទៀត ដើម្បីចូលប្រើប្រព័ន្ធ។", confirmLabel: "ចាកចេញ", danger: true })) api.signOut(); }} className="w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-semibold" style={{ background: C.bgAlt, color: C.red }}>
+        <LogOut size={14} /> ចាកចេញ
+      </button>
     </div>
   );
 }

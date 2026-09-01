@@ -5,6 +5,7 @@ import { Field, PrimaryButton, inputCls, inputStyle } from "@/components/ui/prim
 import { PhotoPicker } from "@/components/ui/PhotoPicker";
 import { HEALTH_LEVELS } from "@/lib/constants";
 import { C } from "@/lib/tokens";
+import { errorMessage } from "@/lib/errors";
 
 interface Props {
   initial?: Tree;
@@ -36,7 +37,7 @@ export function TreeForm({ initial, allowedPlots, existingTrees, onClose, onSubm
       await onSubmit({ ...(initial ?? {}), code: trimmed, plot: plot.trim(), variety: variety.trim(), plantedDate, health, notes: notes.trim(), photo });
       onClose();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = errorMessage(err);
       setCodeError((err as { code?: string })?.code === "23505" ? "លេខកូដដើមនេះមានស្រាប់ហើយ សូមប្តូរលេខកូដថ្មី" : msg);
     } finally { setBusy(false); }
   };

@@ -1,10 +1,11 @@
 import { NavLink } from "react-router-dom";
 import { LogOut, WifiOff } from "lucide-react";
-import { C, tint } from "@/lib/tokens";
+import { C, tint, R } from "@/lib/tokens";
 import { DurianMark } from "@/components/ui/DurianMark";
 import { getVisibleTabs, roleInfo } from "@/lib/permissions";
 import * as api from "@/api";
 import type { FarmSettings, Role, UserProfile } from "@/types/domain";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 
 interface Props {
   role: Role;
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export function Sidebar({ role, visibility, farm, profile, online, pending }: Props) {
+  const confirm = useConfirm();
   const tabs = getVisibleTabs(role, visibility);
   const ri = roleInfo(role);
 
@@ -39,11 +41,12 @@ export function Sidebar({ role, visibility, farm, profile, online, pending }: Pr
               to={path}
               end={t.key === "home"}
               className={({ isActive }) =>
-                `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${isActive ? "" : "hover:opacity-80"}`
+                `flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-colors ${isActive ? "" : "hover:opacity-80"}`
               }
               style={({ isActive }) => ({
                 background: isActive ? `linear-gradient(135deg, ${C.green}, ${C.greenMid})` : "transparent",
                 color: isActive ? "#fff" : C.ink,
+                borderRadius: R.base,
               })}
             >
               <Icon size={17} />
@@ -73,7 +76,7 @@ export function Sidebar({ role, visibility, farm, profile, online, pending }: Pr
             <div className="text-xs font-semibold truncate" style={{ color: C.ink }}>{profile.name}</div>
             <div className="text-[10.5px] truncate" style={{ color: C.inkSoft }}>{ri.label}</div>
           </div>
-          <button onClick={() => api.signOut()} className="w-7 h-7 rounded-full flex items-center justify-center shrink-0" style={{ background: C.bgAlt }} title="ចាកចេញ">
+          <button onClick={async () => { if (await confirm({ title: "ចាកចេញពីគណនី?", message: "អ្នកនឹងត្រូវបញ្ចូល email និងពាក្យសម្ងាត់ម្តងទៀត ដើម្បីចូលប្រើប្រព័ន្ធ។", confirmLabel: "ចាកចេញ", danger: true })) api.signOut(); }} className="w-7 h-7 rounded-full flex items-center justify-center shrink-0" style={{ background: C.bgAlt }} title="ចាកចេញ">
             <LogOut size={13} color={C.red} />
           </button>
         </div>
