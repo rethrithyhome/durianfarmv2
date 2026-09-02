@@ -1,12 +1,13 @@
 import { supabase, DEFAULT_FARM_ID } from "@/lib/supabaseClient";
 import { must } from "./_shared";
-import type { Currency, Gender, Status, WageType, Worker } from "@/types/domain";
+import type { Currency, DailyRateMode, Gender, Status, WageType, Worker } from "@/types/domain";
 
 interface WorkerRow {
   id: string; name: string; phone: string | null; position: string | null; specialty: string | null;
   plot: string | null; status: Status; photo_url: string | null; notes: string | null;
   wage_type: WageType; wage_rate: number; wage_currency: Currency; start_date: string | null;
   gender: Gender | null; birth_date: string | null; id_doc_url: string | null; id_doc_name: string | null;
+  daily_rate_mode: DailyRateMode | null;
 }
 const fromRow = (r: WorkerRow): Worker => ({
   id: r.id, name: r.name, phone: r.phone, position: r.position, specialty: r.specialty,
@@ -14,6 +15,7 @@ const fromRow = (r: WorkerRow): Worker => ({
   wageType: r.wage_type ?? "hourly", wageRate: Number(r.wage_rate ?? 0), wageCurrency: r.wage_currency ?? "KHR",
   startDate: r.start_date,
   gender: r.gender, birthDate: r.birth_date, idDocUrl: r.id_doc_url, idDocName: r.id_doc_name,
+  dailyRateMode: r.daily_rate_mode ?? "hourly",
 });
 const toRow = (w: Partial<Worker>, farmId: string) => ({
   farm_id: farmId, name: w.name, phone: w.phone || null, position: w.position || null,
@@ -22,6 +24,7 @@ const toRow = (w: Partial<Worker>, farmId: string) => ({
   start_date: w.startDate || null,
   gender: w.gender || null, birth_date: w.birthDate || null,
   id_doc_url: w.idDocUrl || null, id_doc_name: w.idDocName || null,
+  daily_rate_mode: w.dailyRateMode ?? "hourly",
 });
 
 export async function listWorkers(farmId: string = DEFAULT_FARM_ID): Promise<Worker[]> {

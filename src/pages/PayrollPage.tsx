@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Check, Clock, Wallet, Users, History, Trash2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { ChevronLeft, ChevronRight, Check, Clock, Wallet, Users, History, Trash2, FileText } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkers } from "@/hooks/useWorkers";
 import { useWorkLogs, useSaveWorkLog, usePayrollPayments, useCreatePayrollPayment, useDeletePayrollPayment } from "@/hooks/usePayroll";
@@ -10,7 +11,9 @@ import { fmtCurrency, toKhr } from "@/lib/currency";
 import { fmtDate, todayISO } from "@/lib/format";
 import { errorMessage } from "@/lib/errors";
 import { C, tint } from "@/lib/tokens";
+import { GENDER_LABELS, genderColor } from "@/lib/constants";
 import { StatCard, EmptyState, PrimaryButton, Badge, FilterChip, inputCls, inputStyle } from "@/components/ui/primitives";
+import { Search } from "lucide-react";
 import { SheetModal } from "@/components/ui/SheetModal";
 import type { FarmSettings, Role, WageType, Worker, WorkLog } from "@/types/domain";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
@@ -19,6 +22,7 @@ type SubTab = "hours" | "salary" | "daily" | "history";
 
 export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) {
   const confirm = useConfirm();
+  const navigate = useNavigate();
   const { profile } = useAuth();
   const enabled = !!profile?.farmId;
   const workersQ = useWorkers(enabled);
@@ -33,7 +37,10 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
   const [cycle, setCycle] = useState<PayrollCycle>(() => cycleFor(new Date(), farm.payrollCycleStartDay));
   const [logDate, setLogDate] = useState(todayISO());
   const [hoursDraft, setHoursDraft] = useState<Record<string, string>>({});
+  const [amountDraft, setAmountDraft] = useState<Record<string, string>>({});
   const [wageFilter, setWageFilter] = useState<WageType | "all">("all");
+  const [search, setSearch] = useState("");
+  const matchesSearch = (name: string) => !search || name.toLowerCase().includes(search.toLowerCase());
 
   // Flexible payout range for hourly workers — defaults to the last 7 days.
   const weekAgo = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
@@ -56,10 +63,15 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
 
   const hourlyRows = useMemo(() => hourlyWorkers.map((w) => {
     const unpaid = unpaidLogsFor(w.id);
+    const byDay = w.dailyRateMode === "daily";
+    // Flat-daily workers: the money entered each day IS the amount — it
+    // varies (left an hour early, etc). Hourly workers: hours × rate.
+    const days = unpaid.filter((l) => l.dayAmount != null).length;
     const hours = unpaid.reduce((s, l) => s + l.hours, 0);
-    const amount = hours * w.wageRate;
-    return { worker: w, unpaid, hours, amount, amountKhr: toKhr(amount, w.wageCurrency, farm.exchangeRate) };
-  }).filter((r) => r.hours > 0),
+    const amount = byDay ? unpaid.reduce((s, l) => s + (l.dayAmount ?? 0), 0) : hours * w.wageRate;
+    const units = byDay ? days : hours;
+    return { worker: w, unpaid, byDay, days, hours, units, amount, amountKhr: toKhr(amount, w.wageCurrency, farm.exchangeRate) };
+  }).filter((r) => r.units > 0),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [hourlyWorkers, logs, rangeStart, rangeEnd, farm.exchangeRate]);
 
@@ -77,6 +89,8 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
 
   const hoursInCycle = (w: Worker) =>
     logs.filter((l) => l.workerId === w.id && isInCycle(l.date, cycle)).reduce((s, l) => s + l.hours, 0);
+  const amountInCycle = (w: Worker) =>
+    logs.filter((l) => l.workerId === w.id && isInCycle(l.date, cycle)).reduce((s, l) => s + (l.dayAmount ?? 0), 0);
 
   /* ---------- actions ---------- */
   const saveHours = async (workerId: string) => {
@@ -84,6 +98,12 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
     if (raw === undefined || raw === "") return;
     await saveLogM.mutateAsync({ workerId, date: logDate, hours: Number(raw) || 0 });
     setHoursDraft((d) => { const next = { ...d }; delete next[workerId]; return next; });
+  };
+  const saveAmount = async (workerId: string) => {
+    const raw = amountDraft[workerId];
+    if (raw === undefined || raw === "") return;
+    await saveLogM.mutateAsync({ workerId, date: logDate, hours: 0, dayAmount: Number(raw) || 0 });
+    setAmountDraft((d) => { const next = { ...d }; delete next[workerId]; return next; });
   };
 
   const payOne = async (worker: Worker, amount: number, opts: { wageType: WageType; start: string; end: string; hours?: number; logIds?: string[] }) => {
@@ -122,7 +142,7 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
       for (const r of selectedRows) {
         await payOne(r.worker, r.amount, {
           wageType: "hourly", start: rangeStart, end: rangeEnd,
-          hours: r.hours, logIds: r.unpaid.map((l) => l.id),
+          hours: r.byDay ? r.days : r.hours, logIds: r.unpaid.map((l) => l.id),
         });
       }
       setSelected({});
@@ -135,6 +155,12 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
 
   return (
     <div className="pt-1 pb-4">
+      {can(role, "viewReports") && (
+        <button onClick={() => navigate("/payroll-report")} className="w-full flex items-center justify-center gap-2 rounded-2xl py-2.5 mb-3 text-xs font-semibold" style={{ background: C.card, border: `1px solid ${C.line}`, color: C.green }}>
+          <FileText size={15} /> តារាងចំណាយប្រាក់ឈ្នួល (ព្រីន/CSV)
+        </button>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
         <StatCard icon={Users} label="កម្មករប្រាក់ខែ" value={monthlyWorkers.length} accent={C.greenMid} />
         <StatCard icon={Clock} label="កម្មករប្រាក់ថ្ងៃ" value={hourlyWorkers.length} accent={C.blue} />
@@ -160,6 +186,13 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
         ))}
       </div>
 
+      {(sub === "hours" || sub === "daily" || sub === "salary") && (
+        <div className="flex items-center gap-2 rounded-xl px-3 py-2 mb-3" style={{ background: C.card, border: `1px solid ${C.line}` }}>
+          <Search size={15} color={C.inkSoft} />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ស្វែងរកឈ្មោះកម្មករ..." className="flex-1 bg-transparent text-xs outline-none" style={{ color: C.ink }} />
+        </div>
+      )}
+
       {/* ---------------- HOURS ---------------- */}
       {sub === "hours" && (
         <>
@@ -167,11 +200,11 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
             <div className="text-[11px] mb-1.5" style={{ color: C.inkSoft }}>កាលបរិច្ឆេទ</div>
             <input type="date" value={logDate} onChange={(e) => setLogDate(e.target.value)} className={inputCls} style={inputStyle} />
           </div>
-          {hourlyWorkers.length === 0 ? (
-            <EmptyState icon={Clock} title="គ្មានកម្មករប្រាក់ថ្ងៃ" hint="កម្មករដែលកំណត់ជាប្រភេទ 'ប្រាក់ថ្ងៃ' នឹងបង្ហាញនៅទីនេះ" />
+          {hourlyWorkers.filter((w) => matchesSearch(w.name)).length === 0 ? (
+            <EmptyState icon={search ? Search : Clock} title={search ? "រកមិនឃើញកម្មករ" : "គ្មានកម្មករប្រាក់ថ្ងៃ"} hint={search ? `គ្មានកម្មករឈ្មោះត្រូវនឹង "${search}"` : "កម្មករដែលកំណត់ជាប្រភេទ 'ប្រាក់ថ្ងៃ' នឹងបង្ហាញនៅទីនេះ"} />
           ) : (
             <div className="space-y-2">
-              {hourlyWorkers.map((w) => {
+              {hourlyWorkers.filter((w) => matchesSearch(w.name)).map((w) => {
                 const existing = logs.find((l) => l.workerId === w.id && l.date === logDate);
                 const locked = !!existing?.paymentId;
                 const draft = hoursDraft[w.id];
@@ -180,22 +213,48 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
                 return (
                   <div key={w.id} className="flex items-center gap-3 rounded-2xl p-3" style={{ background: C.card, border: `1px solid ${C.line}` }}>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold truncate" style={{ color: C.ink }}>{w.name}</div>
+                      <div className="text-sm font-semibold flex items-center gap-1.5" style={{ color: C.ink }}>
+                        <span className="truncate">{w.name}</span>
+                        {w.gender && <Badge label={GENDER_LABELS[w.gender]} color={genderColor(w.gender)} />}
+                      </div>
                       <div className="text-[10.5px]" style={{ color: C.inkSoft }}>
-                        {can(role, "setWage") ? `${fmtCurrency(w.wageRate, w.wageCurrency)}/ម៉ោង · ` : ""}
-                        ខួបនេះ {hoursInCycle(w)} ម៉ោង
+                        {can(role, "setWage") && w.dailyRateMode !== "daily" ? `${fmtCurrency(w.wageRate, w.wageCurrency)}/ម៉ោង · ` : ""}
+                        {w.dailyRateMode === "daily" ? `ខួបនេះ ${fmtCurrency(amountInCycle(w), w.wageCurrency)}` : `ខួបនេះ ${hoursInCycle(w)} ម៉ោង`}
                         {locked && " · បើកប្រាក់រួច"}
                       </div>
                     </div>
-                    <input type="number" min="0" step="0.5" value={value} disabled={locked}
-                      onChange={(e) => setHoursDraft((d) => ({ ...d, [w.id]: e.target.value }))}
-                      className="w-20 rounded-xl px-2.5 py-2 text-sm text-center outline-none disabled:opacity-50"
-                      style={inputStyle} placeholder="ម៉ោង" />
-                    <button onClick={() => saveHours(w.id)} disabled={!dirty || locked}
-                      className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 disabled:opacity-40"
-                      style={{ background: dirty && !locked ? C.green : C.bgAlt }}>
-                      <Check size={15} color={dirty && !locked ? "#fff" : C.inkSoft} />
-                    </button>
+                    {w.dailyRateMode === "daily" ? (
+                      (() => {
+                        const draftA = amountDraft[w.id];
+                        const valueA = draftA !== undefined ? draftA : (existing?.dayAmount?.toString() ?? "");
+                        const dirtyA = draftA !== undefined && draftA !== (existing?.dayAmount?.toString() ?? "");
+                        return (
+                          <>
+                            <input type="number" min="0" step="500" value={valueA} disabled={locked}
+                              onChange={(e) => setAmountDraft((d) => ({ ...d, [w.id]: e.target.value }))}
+                              className="w-28 rounded-xl px-2.5 py-2 text-sm text-center outline-none disabled:opacity-50"
+                              style={inputStyle} placeholder="ចំនួនប្រាក់" />
+                            <button onClick={() => saveAmount(w.id)} disabled={!dirtyA || locked}
+                              className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 disabled:opacity-40"
+                              style={{ background: dirtyA && !locked ? C.green : C.bgAlt }}>
+                              <Check size={15} color={dirtyA && !locked ? "#fff" : C.inkSoft} />
+                            </button>
+                          </>
+                        );
+                      })()
+                    ) : (
+                      <>
+                        <input type="number" min="0" step="0.5" value={value} disabled={locked}
+                          onChange={(e) => setHoursDraft((d) => ({ ...d, [w.id]: e.target.value }))}
+                          className="w-20 rounded-xl px-2.5 py-2 text-sm text-center outline-none disabled:opacity-50"
+                          style={inputStyle} placeholder="ម៉ោង" />
+                        <button onClick={() => saveHours(w.id)} disabled={!dirty || locked}
+                          className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 disabled:opacity-40"
+                          style={{ background: dirty && !locked ? C.green : C.bgAlt }}>
+                          <Check size={15} color={dirty && !locked ? "#fff" : C.inkSoft} />
+                        </button>
+                      </>
+                    )}
                   </div>
                 );
               })}
@@ -221,8 +280,8 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
             </div>
           </div>
 
-          {hourlyRows.length === 0 ? (
-            <EmptyState icon={Clock} title="គ្មានម៉ោងត្រូវបើកប្រាក់" hint="គ្មានថ្ងៃធ្វើការដែលមិនទាន់បើកប្រាក់ក្នុងចន្លោះថ្ងៃនេះទេ" />
+          {hourlyRows.filter((r) => matchesSearch(r.worker.name)).length === 0 ? (
+            <EmptyState icon={search ? Search : Clock} title={search ? "រកមិនឃើញកម្មករ" : "គ្មានម៉ោងត្រូវបើកប្រាក់"} hint={search ? `គ្មានកម្មករឈ្មោះត្រូវនឹង "${search}"` : "គ្មានថ្ងៃធ្វើការដែលមិនទាន់បើកប្រាក់ក្នុងចន្លោះថ្ងៃនេះទេ"} />
           ) : (
             <>
               <div className="flex items-center justify-between mb-2">
@@ -239,7 +298,7 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
               </div>
 
               <div className="space-y-2 mb-3">
-                {hourlyRows.map((r) => {
+                {hourlyRows.filter((r) => matchesSearch(r.worker.name)).map((r) => {
                   const on = !!selected[r.worker.id];
                   return (
                     <button key={r.worker.id} onClick={() => setSelected((s) => ({ ...s, [r.worker.id]: !on }))}
@@ -250,9 +309,12 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
                         {on && <Check size={13} color="#fff" />}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold truncate" style={{ color: C.ink }}>{r.worker.name}</div>
+                        <div className="text-sm font-semibold flex items-center gap-1.5" style={{ color: C.ink }}>
+                          <span className="truncate">{r.worker.name}</span>
+                          {r.worker.gender && <Badge label={GENDER_LABELS[r.worker.gender]} color={genderColor(r.worker.gender)} />}
+                        </div>
                         <div className="text-[10.5px]" style={{ color: C.inkSoft }}>
-                          {r.unpaid.length} ថ្ងៃ · {r.hours} ម៉ោង × {fmtCurrency(r.worker.wageRate, r.worker.wageCurrency)}
+                          {r.byDay ? `${r.days} ថ្ងៃ · ចំនួនប្រែប្រួលតាមថ្ងៃ` : `${r.unpaid.length} ថ្ងៃ · ${r.hours} ម៉ោង × ${fmtCurrency(r.worker.wageRate, r.worker.wageCurrency)}/ម៉ោង`}
                         </div>
                       </div>
                       <div className="text-right shrink-0">
@@ -290,18 +352,21 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
             <button onClick={() => setCycle(shiftCycle(cycle, farm.payrollCycleStartDay, 1))} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: C.bgAlt }}><ChevronRight size={15} color={C.ink} /></button>
           </div>
 
-          {monthlyWorkers.length === 0 ? (
-            <EmptyState icon={Wallet} title="គ្មានកម្មករប្រាក់ខែ" hint="កម្មករដែលកំណត់ជាប្រភេទ 'ប្រាក់ខែ' នឹងបង្ហាញនៅទីនេះ" />
+          {monthlyWorkers.filter((w) => matchesSearch(w.name)).length === 0 ? (
+            <EmptyState icon={search ? Search : Wallet} title={search ? "រកមិនឃើញកម្មករ" : "គ្មានកម្មករប្រាក់ខែ"} hint={search ? `គ្មានកម្មករឈ្មោះត្រូវនឹង "${search}"` : "កម្មករដែលកំណត់ជាប្រភេទ 'ប្រាក់ខែ' នឹងបង្ហាញនៅទីនេះ"} />
           ) : (
             <div className="space-y-2">
-              {monthlyWorkers.map((w) => {
+              {monthlyWorkers.filter((w) => matchesSearch(w.name)).map((w) => {
                 const amount = salaryAmountFor(w);
                 const paid = salaryPaid(w);
                 const frac = cycleWorkedFraction(cycle, w.startDate);
                 return (
                   <div key={w.id} className="flex items-center gap-3 rounded-2xl p-3" style={{ background: C.card, border: `1px solid ${C.line}` }}>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold truncate" style={{ color: C.ink }}>{w.name}</div>
+                      <div className="text-sm font-semibold flex items-center gap-1.5" style={{ color: C.ink }}>
+                        <span className="truncate">{w.name}</span>
+                        {w.gender && <Badge label={GENDER_LABELS[w.gender]} color={genderColor(w.gender)} />}
+                      </div>
                       <div className="text-[10.5px]" style={{ color: C.inkSoft }}>
                         {fmtCurrency(w.wageRate, w.wageCurrency)}/ខែ{frac < 1 ? ` · ${Math.round(frac * 100)}% នៃខួប` : ""}
                       </div>
@@ -346,7 +411,7 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
                       </div>
                       <div className="text-[10.5px]" style={{ color: C.inkSoft }}>
                         {fmtDate(p.cycleStart)} – {fmtDate(p.cycleEnd)}
-                        {p.hoursPaid ? ` · ${p.hoursPaid} ម៉ោង` : ""} · បង់ថ្ងៃ {fmtDate(p.paidDate)}
+                        {p.hoursPaid ? ` · ${p.hoursPaid} ${w?.dailyRateMode === "daily" ? "ថ្ងៃ" : "ម៉ោង"}` : ""} · បង់ថ្ងៃ {fmtDate(p.paidDate)}
                       </div>
                     </div>
                     <div className="text-sm font-bold shrink-0" style={{ color: C.green }}>{fmtCurrency(p.amount, p.currency)}</div>
@@ -370,7 +435,7 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
           <div className="rounded-xl overflow-hidden mb-4" style={{ border: `1px solid ${C.line}` }}>
             {selectedRows.map((r) => (
               <div key={r.worker.id} className="flex items-center justify-between px-3 py-2 text-xs" style={{ borderBottom: `1px solid ${C.line}` }}>
-                <span style={{ color: C.ink }}>{r.worker.name} <span style={{ color: C.inkSoft }}>({r.hours}ម៉)</span></span>
+                <span style={{ color: C.ink }}>{r.worker.name} <span style={{ color: C.inkSoft }}>({r.byDay ? `${r.days}ថ្ងៃ` : `${r.hours}ម៉`})</span></span>
                 <b style={{ color: C.green }}>{fmtCurrency(r.amount, r.worker.wageCurrency)}</b>
               </div>
             ))}

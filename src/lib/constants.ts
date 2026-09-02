@@ -53,3 +53,8 @@ export const SALE_TYPES: { key: SaleType; label: string }[] = [
   { key: "retail", label: "លក់រាយ" },
   { key: "wholesale", label: "លក់ដុំ" },
 ];
+
+export const GENDER_LABELS: Record<string, string> = { male: "ប្រុស", female: "ស្រី", other: "ផ្សេងៗ" };
+export function genderColor(g?: string | null): string {
+  return g === "male" ? "#3E7C8C" : g === "female" ? "#DB2777" : "#5B6650";
+}

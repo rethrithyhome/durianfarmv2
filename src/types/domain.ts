@@ -1,7 +1,7 @@
 import type { Currency } from "@/lib/currency";
 export type { Currency };
 
-export type Role = "owner" | "general_manager" | "team_lead" | "skilled_worker" | "sales";
+export type Role = "owner" | "general_manager" | "finance_manager" | "team_lead" | "skilled_worker" | "sales";
 
 export type Health = "excellent" | "normal" | "needs_care" | "sick";
 
@@ -18,6 +18,9 @@ export type SaleType = "retail" | "wholesale";
 export type Status = "active" | "inactive";
 
 export type WageType = "monthly" | "hourly";
+/** How a daily worker's pay is calculated: by hours worked, or by an
+ * amount entered for each individual day. */
+export type DailyRateMode = "hourly" | "daily";
 export type Gender = "male" | "female" | "other";
 
 export interface Worker {
@@ -39,6 +42,7 @@ export interface Worker {
   wageType: WageType;
   wageRate: number;          // monthly salary, or per-hour rate
   wageCurrency: Currency;
+  dailyRateMode?: DailyRateMode | null; // only for wageType === "hourly"
   startDate?: string | null; // first day of work; pro-rates a partial first cycle
 }
 
@@ -46,7 +50,11 @@ export interface WorkLog {
   id: string;
   workerId: string;
   date: string;
-  hours: number;
+  hours: number;         // used when dailyRateMode === "hourly"
+  /** Amount actually earned that day, entered per day. Used when
+   * dailyRateMode === "daily", where the sum varies with how much of the
+   * day was worked (a full day vs leaving an hour early, etc). */
+  dayAmount?: number | null;
   note?: string | null;
   paymentId?: string | null; // null = not yet paid out
 }
@@ -116,7 +124,10 @@ export interface Expense {
   currency: Currency;
   amountKhr: number;         // converted to base currency at entry time
   exchangeRate: number;      // rate used, frozen so history never shifts
-  date: string;
+  date: string;              // when the expense was incurred
+  paid: boolean;             // false = bought on credit, not yet settled
+  paidDate?: string | null;  // when it was actually settled (null if unpaid)
+  vendor?: string | null;    // who it's owed to, e.g. a shop or supplier
   treeId?: string | null;
   note?: string | null;
 }

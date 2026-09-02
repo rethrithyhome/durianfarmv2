@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Currency, Gender, WageType, Worker } from "@/types/domain";
+import type { Currency, DailyRateMode, Gender, WageType, Worker } from "@/types/domain";
 import { SheetModal } from "@/components/ui/SheetModal";
 import { Field, PrimaryButton, inputCls, inputStyle } from "@/components/ui/primitives";
 import { PhotoPicker } from "@/components/ui/PhotoPicker";
@@ -32,6 +32,7 @@ export function WorkerForm({ initial, allowedPlots, exchangeRate, canSetWage, on
   const [wageType, setWageType] = useState<WageType>(initial?.wageType ?? "hourly");
   const [wageRate, setWageRate] = useState(initial?.wageRate?.toString() ?? "");
   const [wageCurrency, setWageCurrency] = useState<Currency>(initial?.wageCurrency ?? "KHR");
+  const [dailyRateMode, setDailyRateMode] = useState<DailyRateMode>(initial?.dailyRateMode ?? "hourly");
   const [startDate, setStartDate] = useState(initial?.startDate ?? "");
   const [busy, setBusy] = useState(false);
 
@@ -44,7 +45,7 @@ export function WorkerForm({ initial, allowedPlots, exchangeRate, canSetWage, on
         specialty: specialty.trim(), plot: plot.trim(), status, notes: notes.trim(), photo,
         gender: (gender || null) as Gender | null, birthDate: birthDate || null,
         idDocUrl, idDocName,
-        wageType, wageRate: Number(wageRate) || 0, wageCurrency, startDate: startDate || null,
+        wageType, wageRate: Number(wageRate) || 0, wageCurrency, dailyRateMode, startDate: startDate || null,
       });
       onClose();
     } finally { setBusy(false); }
@@ -77,6 +78,26 @@ export function WorkerForm({ initial, allowedPlots, exchangeRate, canSetWage, on
               <button onClick={() => setWageType("hourly")} className="rounded-xl px-3 py-2 text-xs font-medium" style={{ background: wageType === "hourly" ? `color-mix(in srgb, ${C.greenMid} 12%, transparent)` : C.bgAlt, border: `1.5px solid ${wageType === "hourly" ? C.greenMid : "transparent"}`, color: wageType === "hourly" ? C.greenMid : C.ink }}>ប្រាក់ថ្ងៃ (តាមម៉ោង)</button>
             </div>
           </Field>
+          {wageType === "hourly" && (
+            <Field label="របៀបគិតប្រាក់ថ្ងៃ">
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => setDailyRateMode("hourly")} className="rounded-xl px-3 py-2 text-xs font-medium"
+                  style={{ background: dailyRateMode === "hourly" ? `color-mix(in srgb, ${C.blue} 14%, transparent)` : C.bgAlt, border: `1.5px solid ${dailyRateMode === "hourly" ? C.blue : "transparent"}`, color: dailyRateMode === "hourly" ? C.blue : C.ink }}>
+                  តាមម៉ោង
+                </button>
+                <button onClick={() => setDailyRateMode("daily")} className="rounded-xl px-3 py-2 text-xs font-medium"
+                  style={{ background: dailyRateMode === "daily" ? `color-mix(in srgb, ${C.blue} 14%, transparent)` : C.bgAlt, border: `1.5px solid ${dailyRateMode === "daily" ? C.blue : "transparent"}`, color: dailyRateMode === "daily" ? C.blue : C.ink }}>
+                  ថេរក្នុងមួយថ្ងៃ
+                </button>
+              </div>
+              <div className="text-[10.5px] mt-1" style={{ color: C.inkSoft }}>
+                {dailyRateMode === "hourly"
+                  ? "គិត៖ ម៉ោងធ្វើការ × អត្រា/ម៉ោង — ត្រូវកត់ត្រាម៉ោងរាល់ថ្ងៃ"
+                  : "ឈ្នួលអាចខុសគ្នារាល់ថ្ងៃ — បញ្ចូលចំនួនទឹកប្រាក់ជាក់ស្តែងនៅកាតប្រាក់ឈ្នួល រាល់ថ្ងៃម្តង"}
+              </div>
+            </Field>
+          )}
+          {!(wageType === "hourly" && dailyRateMode === "daily") && (
           <CurrencyInput
             label={wageType === "monthly" ? "ប្រាក់ខែ" : "អត្រាក្នុងមួយម៉ោង"}
             amount={wageRate}
@@ -86,6 +107,19 @@ export function WorkerForm({ initial, allowedPlots, exchangeRate, canSetWage, on
             onCurrencyChange={setWageCurrency}
             placeholder={wageType === "monthly" ? "ឧ. 1200000" : "ឧ. 5000"}
           />
+          )}
+          {wageType === "hourly" && dailyRateMode === "daily" && (
+            <Field label="រូបិយប័ណ្ណនៃឈ្នួល">
+              <div className="flex rounded-xl overflow-hidden" style={{ border: `1px solid ${C.line}` }}>
+                {(["KHR", "USD"] as const).map((c) => (
+                  <button key={c} onClick={() => setWageCurrency(c)} className="flex-1 py-2 text-xs font-semibold"
+                    style={{ background: wageCurrency === c ? C.green : C.bgAlt, color: wageCurrency === c ? "#fff" : C.inkSoft }}>
+                    {c === "KHR" ? "៛ រៀល" : "$ ដុល្លារ"}
+                  </button>
+                ))}
+              </div>
+            </Field>
+          )}
           {wageType === "monthly" && (
             <Field label="ថ្ងៃចូលធ្វើការ">
               <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inputCls} style={inputStyle} />

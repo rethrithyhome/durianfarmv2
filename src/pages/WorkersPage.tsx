@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Search, Plus, Pencil, Trash2, Users, User, Wallet, Clock, FileText } from "lucide-react";
+import { Search, Plus, Pencil, Trash2, Users, User, Wallet, Clock, FileText, Phone } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkers, useCreateWorker, useUpdateWorker, useDeleteWorker } from "@/hooks/useWorkers";
 import { can } from "@/lib/permissions";
@@ -7,12 +7,13 @@ import { C } from "@/lib/tokens";
 import { Badge, EmptyState, FilterChip, StatCard } from "@/components/ui/primitives";
 import { SortMenu } from "@/components/ui/SortMenu";
 import { fmtDate } from "@/lib/format";
-import { fmtCurrency, toKhr } from "@/lib/currency";
+import { GENDER_LABELS, genderColor } from "@/lib/constants";
+import { toKhr } from "@/lib/currency";
 import { WorkerForm } from "@/components/workers/WorkerForm";
 import type { FarmSettings, Role, WageType, Worker } from "@/types/domain";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 
-type SortKey = "name" | "plot" | "position" | "wageHigh" | "newest" | "longest" | "status";
+type SortKey = "name" | "plot" | "position" | "wageHigh" | "newest" | "longest" | "gender" | "status";
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: "name", label: "ឈ្មោះ ក-អ" },
   { key: "plot", label: "ចម្រៀក" },
@@ -20,6 +21,7 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: "wageHigh", label: "ប្រាក់ឈ្នួល ច្រើន→តិច" },
   { key: "newest", label: "ចូលថ្មីបំផុត" },
   { key: "longest", label: "ចាស់ជាងគេ" },
+  { key: "gender", label: "ភេទ" },
   { key: "status", label: "កំពុងធ្វើការមុន" },
 ];
 
@@ -43,7 +45,7 @@ export function WorkersPage({ role, farm }: { role: Role; farm: FarmSettings }) 
 
   const filtered = useMemo(() => {
     const list = workers.filter((w) => {
-      const matchQ = !q || w.name.toLowerCase().includes(q.toLowerCase()) || (w.position ?? "").toLowerCase().includes(q.toLowerCase());
+      const matchQ = !q || w.name.toLowerCase().includes(q.toLowerCase()) || (w.position ?? "").toLowerCase().includes(q.toLowerCase()) || (w.phone ?? "").includes(q);
       const matchWage = wageFilter === "all" || w.wageType === wageFilter;
       return matchQ && matchWage;
     });
@@ -55,6 +57,7 @@ export function WorkersPage({ role, farm }: { role: Role; farm: FarmSettings }) 
       case "wageHigh": sorted.sort((a, b) => toKhr(b.wageRate, b.wageCurrency, farm.exchangeRate) - toKhr(a.wageRate, a.wageCurrency, farm.exchangeRate)); break;
       case "newest": sorted.sort((a, b) => (b.startDate ?? "").localeCompare(a.startDate ?? "")); break;
       case "longest": sorted.sort((a, b) => (a.startDate ?? "9999").localeCompare(b.startDate ?? "9999")); break;
+      case "gender": sorted.sort((a, b) => (a.gender ?? "zz").localeCompare(b.gender ?? "zz")); break;
       case "status": sorted.sort((a, b) => Number(a.status === "inactive") - Number(b.status === "inactive")); break;
     }
     return sorted;
@@ -97,13 +100,14 @@ export function WorkersPage({ role, farm }: { role: Role; farm: FarmSettings }) 
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-semibold flex items-center gap-1.5" style={{ color: C.ink }}>
                   <span className="break-words">{w.name}</span>
+                  {w.gender && <Badge label={GENDER_LABELS[w.gender]} color={genderColor(w.gender)} />}
                   {w.idDocUrl && <FileText size={12} color={C.inkSoft} />}
                 </div>
                 <div className="text-[11px]" style={{ color: C.inkSoft }}>{w.position || "—"}{w.plot ? ` · ${w.plot}` : ""}{w.specialty ? ` · ${w.specialty}` : ""}</div>
                 {w.startDate && <div className="text-[10.5px]" style={{ color: C.inkSoft }}>ចូលធ្វើការ {fmtDate(w.startDate)}</div>}
-                {can(role, "setWage") && w.wageRate > 0 && (
-                  <div className="text-[10.5px] mt-0.5" style={{ color: C.greenMid }}>
-                    {fmtCurrency(w.wageRate, w.wageCurrency)}{w.wageType === "monthly" ? "/ខែ" : "/ម៉ោង"}
+                {w.phone && (
+                  <div className="text-[10.5px] mt-0.5 flex items-center gap-1" style={{ color: C.greenMid }}>
+                    <Phone size={10} /> {w.phone}
                   </div>
                 )}
               </div>

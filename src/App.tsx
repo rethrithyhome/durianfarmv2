@@ -18,6 +18,8 @@ import { SettingsPage } from "@/pages/SettingsPage";
 import { PrintQRPage } from "@/pages/PrintQRPage";
 import { ReportPage } from "@/pages/ReportPage";
 import { AuditLogPage } from "@/pages/AuditLogPage";
+import { PayrollReportPage } from "@/pages/PayrollReportPage";
+import { ExpenseReportPage } from "@/pages/ExpenseReportPage";
 import { DurianMark } from "@/components/ui/DurianMark";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { C, R, SHADOW } from "@/lib/tokens";
@@ -159,6 +161,8 @@ function AuthedShell() {
                 <Route path="/print-qr" element={<PrintQRPage />} />
                 <Route path="/reports" element={<ReportPage />} />
                 <Route path="/audit" element={<AuditLogPage />} />
+                <Route path="/payroll-report" element={<PayrollReportPage />} />
+                <Route path="/expense-report" element={<ExpenseReportPage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </div>

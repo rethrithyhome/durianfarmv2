@@ -3,12 +3,12 @@ import { must } from "./_shared";
 import type { Currency, PayrollPayment, WageType, WorkLog } from "@/types/domain";
 
 /* ---------------- WORK LOGS ---------------- */
-interface WorkLogRow { id: string; worker_id: string; date: string; hours: number; note: string | null; payment_id: string | null }
+interface WorkLogRow { id: string; worker_id: string; date: string; hours: number; day_amount: number | null; note: string | null; payment_id: string | null }
 const logFromRow = (r: WorkLogRow): WorkLog => ({
-  id: r.id, workerId: r.worker_id, date: r.date, hours: Number(r.hours), note: r.note, paymentId: r.payment_id,
+  id: r.id, workerId: r.worker_id, date: r.date, hours: Number(r.hours), dayAmount: r.day_amount == null ? null : Number(r.day_amount), note: r.note, paymentId: r.payment_id,
 });
 const logToRow = (l: Partial<WorkLog>, farmId: string) => ({
-  farm_id: farmId, worker_id: l.workerId, date: l.date, hours: l.hours ?? 0, note: l.note || null,
+  farm_id: farmId, worker_id: l.workerId, date: l.date, hours: l.hours ?? 0, day_amount: l.dayAmount ?? null, note: l.note || null,
 });
 
 export async function listWorkLogs(farmId: string = DEFAULT_FARM_ID): Promise<WorkLog[]> {
