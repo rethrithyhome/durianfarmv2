@@ -18,6 +18,7 @@ export type SaleType = "retail" | "wholesale";
 export type Status = "active" | "inactive";
 
 export type WageType = "monthly" | "hourly";
+export type Gender = "male" | "female" | "other";
 
 export interface Worker {
   id: string;
@@ -31,6 +32,10 @@ export interface Worker {
   notes?: string | null;
   // Payroll — each worker has their own rate, set individually, so
   // different people can be paid differently for the same work.
+  gender?: Gender | null;
+  birthDate?: string | null;
+  idDocUrl?: string | null;   // scanned ID / contract (PDF or image)
+  idDocName?: string | null;  // original filename, for display
   wageType: WageType;
   wageRate: number;          // monthly salary, or per-hour rate
   wageCurrency: Currency;

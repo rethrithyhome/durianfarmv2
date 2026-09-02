@@ -1,14 +1,27 @@
 import { useMemo, useState } from "react";
-import { Search, Plus, Pencil, Trash2, Users, User, Wallet, Clock } from "lucide-react";
+import { Search, Plus, Pencil, Trash2, Users, User, Wallet, Clock, FileText } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkers, useCreateWorker, useUpdateWorker, useDeleteWorker } from "@/hooks/useWorkers";
 import { can } from "@/lib/permissions";
 import { C } from "@/lib/tokens";
 import { Badge, EmptyState, FilterChip, StatCard } from "@/components/ui/primitives";
-import { fmtCurrency } from "@/lib/currency";
+import { SortMenu } from "@/components/ui/SortMenu";
+import { fmtDate } from "@/lib/format";
+import { fmtCurrency, toKhr } from "@/lib/currency";
 import { WorkerForm } from "@/components/workers/WorkerForm";
 import type { FarmSettings, Role, WageType, Worker } from "@/types/domain";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
+
+type SortKey = "name" | "plot" | "position" | "wageHigh" | "newest" | "longest" | "status";
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: "name", label: "ឈ្មោះ ក-អ" },
+  { key: "plot", label: "ចម្រៀក" },
+  { key: "position", label: "តួនាទី" },
+  { key: "wageHigh", label: "ប្រាក់ឈ្នួល ច្រើន→តិច" },
+  { key: "newest", label: "ចូលថ្មីបំផុត" },
+  { key: "longest", label: "ចាស់ជាងគេ" },
+  { key: "status", label: "កំពុងធ្វើការមុន" },
+];
 
 export function WorkersPage({ role, farm }: { role: Role; farm: FarmSettings }) {
   const confirm = useConfirm();
@@ -21,17 +34,31 @@ export function WorkersPage({ role, farm }: { role: Role; farm: FarmSettings }) 
 
   const [q, setQ] = useState("");
   const [wageFilter, setWageFilter] = useState<WageType | "all">("all");
+  const [sort, setSort] = useState<SortKey>("name");
   const [modal, setModal] = useState<{ mode: "add" | "edit"; worker?: Worker } | null>(null);
 
   const workers = workersQ.data ?? [];
   const monthlyCount = workers.filter((w) => w.wageType === "monthly").length;
   const hourlyCount = workers.filter((w) => w.wageType === "hourly").length;
 
-  const filtered = useMemo(() => workers.filter((w) => {
-    const matchQ = !q || w.name.toLowerCase().includes(q.toLowerCase()) || (w.position ?? "").toLowerCase().includes(q.toLowerCase());
-    const matchWage = wageFilter === "all" || w.wageType === wageFilter;
-    return matchQ && matchWage;
-  }), [workers, q, wageFilter]);
+  const filtered = useMemo(() => {
+    const list = workers.filter((w) => {
+      const matchQ = !q || w.name.toLowerCase().includes(q.toLowerCase()) || (w.position ?? "").toLowerCase().includes(q.toLowerCase());
+      const matchWage = wageFilter === "all" || w.wageType === wageFilter;
+      return matchQ && matchWage;
+    });
+    const sorted = [...list];
+    switch (sort) {
+      case "name": sorted.sort((a, b) => a.name.localeCompare(b.name, "km")); break;
+      case "plot": sorted.sort((a, b) => (a.plot ?? "").localeCompare(b.plot ?? "", "km")); break;
+      case "position": sorted.sort((a, b) => (a.position ?? "").localeCompare(b.position ?? "", "km")); break;
+      case "wageHigh": sorted.sort((a, b) => toKhr(b.wageRate, b.wageCurrency, farm.exchangeRate) - toKhr(a.wageRate, a.wageCurrency, farm.exchangeRate)); break;
+      case "newest": sorted.sort((a, b) => (b.startDate ?? "").localeCompare(a.startDate ?? "")); break;
+      case "longest": sorted.sort((a, b) => (a.startDate ?? "9999").localeCompare(b.startDate ?? "9999")); break;
+      case "status": sorted.sort((a, b) => Number(a.status === "inactive") - Number(b.status === "inactive")); break;
+    }
+    return sorted;
+  }, [workers, q, wageFilter, sort, farm.exchangeRate]);
 
   return (
     <div className="pt-1 pb-4">
@@ -49,24 +76,31 @@ export function WorkersPage({ role, farm }: { role: Role; farm: FarmSettings }) 
         <StatCard icon={Clock} label="ប្រាក់ថ្ងៃ" value={hourlyCount} accent={C.blue} />
       </div>
 
-      <div className="flex gap-1.5 overflow-x-auto mb-3 pb-0.5">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="flex gap-1.5 overflow-x-auto flex-1 pb-0.5">
         <FilterChip active={wageFilter === "all"} onClick={() => setWageFilter("all")} label={`ទាំងអស់ (${workers.length})`} />
         <FilterChip active={wageFilter === "monthly"} onClick={() => setWageFilter("monthly")} label={`ប្រាក់ខែ (${monthlyCount})`} color={C.greenMid} />
         <FilterChip active={wageFilter === "hourly"} onClick={() => setWageFilter("hourly")} label={`ប្រាក់ថ្ងៃ (${hourlyCount})`} color={C.blue} />
+        </div>
+        <SortMenu value={sort} options={SORT_OPTIONS} onChange={setSort} />
       </div>
 
       {filtered.length === 0 ? (
         <EmptyState icon={Users} title="មិនទាន់មានកម្មករ" hint="បន្ថែមកម្មករដំបូងរបស់អ្នក" />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+        <div className="space-y-2">
           {filtered.map((w) => (
             <div key={w.id} className="flex items-center gap-3 rounded-2xl p-3" style={{ background: C.card, border: `1px solid ${C.line}` }}>
               <div className="w-11 h-11 rounded-full overflow-hidden flex items-center justify-center shrink-0" style={{ background: C.bgAlt }}>
                 {w.photo ? <img src={w.photo} className="w-full h-full object-cover" alt="" /> : <User size={18} color={C.greenMid} />}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold truncate" style={{ color: C.ink }}>{w.name}</div>
-                <div className="text-[11px] truncate" style={{ color: C.inkSoft }}>{w.position || "—"}{w.plot ? ` · ${w.plot}` : ""}{w.specialty ? ` · ${w.specialty}` : ""}</div>
+                <div className="text-sm font-semibold flex items-center gap-1.5" style={{ color: C.ink }}>
+                  <span className="break-words">{w.name}</span>
+                  {w.idDocUrl && <FileText size={12} color={C.inkSoft} />}
+                </div>
+                <div className="text-[11px]" style={{ color: C.inkSoft }}>{w.position || "—"}{w.plot ? ` · ${w.plot}` : ""}{w.specialty ? ` · ${w.specialty}` : ""}</div>
+                {w.startDate && <div className="text-[10.5px]" style={{ color: C.inkSoft }}>ចូលធ្វើការ {fmtDate(w.startDate)}</div>}
                 {can(role, "setWage") && w.wageRate > 0 && (
                   <div className="text-[10.5px] mt-0.5" style={{ color: C.greenMid }}>
                     {fmtCurrency(w.wageRate, w.wageCurrency)}{w.wageType === "monthly" ? "/ខែ" : "/ម៉ោង"}

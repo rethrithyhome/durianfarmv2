@@ -1,9 +1,10 @@
 import { useState } from "react";
-import type { Currency, WageType, Worker } from "@/types/domain";
+import type { Currency, Gender, WageType, Worker } from "@/types/domain";
 import { SheetModal } from "@/components/ui/SheetModal";
 import { Field, PrimaryButton, inputCls, inputStyle } from "@/components/ui/primitives";
 import { PhotoPicker } from "@/components/ui/PhotoPicker";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
+import { DocumentPicker } from "@/components/ui/DocumentPicker";
 import { C } from "@/lib/tokens";
 
 interface Props {
@@ -24,6 +25,10 @@ export function WorkerForm({ initial, allowedPlots, exchangeRate, canSetWage, on
   const [status, setStatus] = useState<Worker["status"]>(initial?.status ?? "active");
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [photo, setPhoto] = useState<string | null>(initial?.photo ?? null);
+  const [gender, setGender] = useState<Gender | "">(initial?.gender ?? "");
+  const [birthDate, setBirthDate] = useState(initial?.birthDate ?? "");
+  const [idDocUrl, setIdDocUrl] = useState<string | null>(initial?.idDocUrl ?? null);
+  const [idDocName, setIdDocName] = useState<string | null>(initial?.idDocName ?? null);
   const [wageType, setWageType] = useState<WageType>(initial?.wageType ?? "hourly");
   const [wageRate, setWageRate] = useState(initial?.wageRate?.toString() ?? "");
   const [wageCurrency, setWageCurrency] = useState<Currency>(initial?.wageCurrency ?? "KHR");
@@ -37,6 +42,8 @@ export function WorkerForm({ initial, allowedPlots, exchangeRate, canSetWage, on
       await onSubmit({
         ...(initial ?? {}), name: name.trim(), phone: phone.trim(), position: position.trim(),
         specialty: specialty.trim(), plot: plot.trim(), status, notes: notes.trim(), photo,
+        gender: (gender || null) as Gender | null, birthDate: birthDate || null,
+        idDocUrl, idDocName,
         wageType, wageRate: Number(wageRate) || 0, wageCurrency, startDate: startDate || null,
       });
       onClose();
@@ -48,6 +55,17 @@ export function WorkerForm({ initial, allowedPlots, exchangeRate, canSetWage, on
       <PhotoPicker value={photo} onChange={setPhoto} label="រូបថតកម្មករ" maxDim={480} quality={0.65} folder="workers" />
       <Field label="ឈ្មោះពេញ *"><input value={name} onChange={(e) => setName(e.target.value)} className={inputCls} style={inputStyle} /></Field>
       <Field label="លេខទូរស័ព្ទ"><input value={phone} onChange={(e) => setPhone(e.target.value)} className={inputCls} style={inputStyle} /></Field>
+      <Field label="ភេទ">
+        <div className="grid grid-cols-3 gap-2">
+          {([["male", "ប្រុស"], ["female", "ស្រី"], ["other", "ផ្សេងៗ"]] as const).map(([key, lbl]) => (
+            <button key={key} onClick={() => setGender(gender === key ? "" : key)} className="rounded-xl px-3 py-2 text-xs font-medium"
+              style={{ background: gender === key ? `color-mix(in srgb, ${C.greenMid} 12%, transparent)` : C.bgAlt, border: `1.5px solid ${gender === key ? C.greenMid : "transparent"}`, color: gender === key ? C.greenMid : C.ink }}>
+              {lbl}
+            </button>
+          ))}
+        </div>
+      </Field>
+      <Field label="ថ្ងៃខែឆ្នាំកំណើត"><input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} className={inputCls} style={inputStyle} /></Field>
       <Field label="តួនាទី/មុខតំណែង"><input value={position} onChange={(e) => setPosition(e.target.value)} placeholder="ឧ. កម្មករបេះផ្លែ" className={inputCls} style={inputStyle} /></Field>
       <Field label="ជំនាញឯកទេស"><input value={specialty} onChange={(e) => setSpecialty(e.target.value)} placeholder="ឧ. ព្យាបាលជំងឺដើម" className={inputCls} style={inputStyle} /></Field>
 
@@ -90,6 +108,13 @@ export function WorkerForm({ initial, allowedPlots, exchangeRate, canSetWage, on
           <button onClick={() => setStatus("inactive")} className="rounded-xl px-3 py-2 text-xs font-medium" style={{ background: status === "inactive" ? `color-mix(in srgb, ${C.red} 12%, transparent)` : C.bgAlt, color: status === "inactive" ? C.red : C.ink }}>ឈប់ធ្វើការ</button>
         </div>
       </Field>
+      <DocumentPicker
+        url={idDocUrl}
+        name={idDocName}
+        onChange={(u, n) => { setIdDocUrl(u); setIdDocName(n); }}
+        label="ឯកសារសម្គាល់ខ្លួន (អត្តសញ្ញាណប័ណ្ណ, កិច្ចសន្យា)"
+        folder="worker-docs"
+      />
       <Field label="កំណត់ចំណាំ"><textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={inputCls} style={inputStyle} /></Field>
       <PrimaryButton full onClick={submit} disabled={busy}>{busy ? "កំពុងរក្សាទុក..." : initial ? "រក្សាទុកការផ្លាស់ប្តូរ" : "បន្ថែមកម្មករ"}</PrimaryButton>
     </SheetModal>
