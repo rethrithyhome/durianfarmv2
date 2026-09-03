@@ -2,6 +2,7 @@ import { useId, useState } from "react";
 import { ImagePlus } from "lucide-react";
 import * as api from "@/api";
 import { useUpdateFarmSettings } from "@/hooks/useFarmSettings";
+import { useToast } from "@/components/ui/Toast";
 import { compressImageFile } from "@/lib/image";
 import { can } from "@/lib/permissions";
 import { C, tint } from "@/lib/tokens";
@@ -11,6 +12,7 @@ import type { FarmSettings, Role } from "@/types/domain";
 import { errorMessage } from "@/lib/errors";
 
 export function FarmInfoSection({ role, farm }: { role: Role; farm: FarmSettings }) {
+  const toast = useToast();
   const updateFarmM = useUpdateFarmSettings();
   const [name, setName] = useState(farm.farmName);
   const [ownerPin, setOwnerPin] = useState(farm.ownerPin);
@@ -27,7 +29,7 @@ export function FarmInfoSection({ role, farm }: { role: Role; farm: FarmSettings
       const url = await api.uploadPhoto(compressed, "logos");
       await updateFarmM.mutateAsync({ logo: url });
     } catch (err) {
-      window.alert("ផ្ទុក Logo មិនបានជោគជ័យ៖ " + (errorMessage(err)));
+      toast.error("ផ្ទុក Logo មិនបានជោគជ័យ៖ " + (errorMessage(err)));
     } finally { setLogoBusy(false); }
   };
 

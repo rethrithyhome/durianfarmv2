@@ -6,6 +6,7 @@ import App from "./App.tsx";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { DarkModeProvider } from "@/contexts/DarkModeContext";
 import { ConfirmProvider } from "@/components/ui/ConfirmDialog";
+import { ToastProvider } from "@/components/ui/Toast";
 import { applyThemeVars, DEFAULT_THEME } from "@/lib/theme";
 
 // Apply a default theme's CSS variables immediately, before the first
@@ -28,9 +29,11 @@ createRoot(document.getElementById("root")!).render(
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <DarkModeProvider>
-          <ConfirmProvider>
-            <App />
-          </ConfirmProvider>
+          <ToastProvider>
+            <ConfirmProvider>
+              <App />
+            </ConfirmProvider>
+          </ToastProvider>
         </DarkModeProvider>
       </AuthProvider>
     </QueryClientProvider>

@@ -16,6 +16,7 @@ import { SortMenu } from "@/components/ui/SortMenu";
 import { SheetModal } from "@/components/ui/SheetModal";
 import { ExpenseForm } from "@/components/expenses/ExpenseForm";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/components/ui/Toast";
 import type { Expense, FarmSettings, Role } from "@/types/domain";
 
 type SortKey = "recent" | "amount" | "category";
@@ -27,6 +28,7 @@ type SubTab = "list" | "settle";
 
 export function ExpensesPage({ role, farm }: { role: Role; farm: FarmSettings }) {
   const confirm = useConfirm();
+  const toast = useToast();
   const navigate = useNavigate();
   const { profile } = useAuth();
   const enabled = !!profile?.farmId;
@@ -81,10 +83,11 @@ export function ExpensesPage({ role, farm }: { role: Role; farm: FarmSettings })
     setBusy(true);
     try {
       await settleM.mutateAsync({ ids: selectedIds, paidDate: todayISO() });
+      toast.success(`ទូទាត់ជោគជ័យ ${selectedIds.length} ធាតុ`);
       setSelected({});
       setConfirmSettle(false);
     } catch (err) {
-      window.alert("ទូទាត់មិនបានជោគជ័យ៖ " + errorMessage(err));
+      toast.error("ទូទាត់មិនបានជោគជ័យ៖ " + errorMessage(err));
     } finally { setBusy(false); }
   };
 

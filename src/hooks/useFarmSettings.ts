@@ -3,6 +3,7 @@ import * as api from "@/api";
 import type { FarmSettings } from "@/types/domain";
 import { qk } from "./queryKeys";
 import { errorMessage } from "@/lib/errors";
+import { useToast } from "@/components/ui/Toast";
 
 export function useFarmSettings(enabled: boolean) {
   return useQuery({ queryKey: qk.farm, queryFn: () => api.getFarm(), enabled });
@@ -10,6 +11,7 @@ export function useFarmSettings(enabled: boolean) {
 
 export function useUpdateFarmSettings() {
   const qc = useQueryClient();
+  const toast = useToast();
   return useMutation({
     mutationFn: (patch: Partial<FarmSettings>) => api.updateFarm(patch),
     // Apply the change to the cache immediately so things like switching
@@ -25,7 +27,7 @@ export function useUpdateFarmSettings() {
     onError: (err, _patch, ctx) => {
       if (ctx?.previous) qc.setQueryData(qk.farm, ctx.previous);
       console.error("Farm settings save failed:", err);
-      window.alert("រក្សាទុកមិនបានជោគជ័យ៖ " + (errorMessage(err)));
+      toast.error("រក្សាទុកមិនបានជោគជ័យ៖ " + (errorMessage(err)));
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: qk.farm });

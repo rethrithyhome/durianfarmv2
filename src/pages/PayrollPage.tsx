@@ -12,6 +12,7 @@ import { fmtDate, todayISO } from "@/lib/format";
 import { errorMessage } from "@/lib/errors";
 import { C, tint } from "@/lib/tokens";
 import { GENDER_LABELS, genderColor } from "@/lib/constants";
+import type { Gender } from "@/types/domain";
 import { WorkerAvatar } from "@/components/workers/WorkerAvatar";
 import { StatCard, EmptyState, PrimaryButton, Badge, FilterChip, inputCls, inputStyle } from "@/components/ui/primitives";
 import { SortMenu } from "@/components/ui/SortMenu";
@@ -19,11 +20,13 @@ import { Search } from "lucide-react";
 import { SheetModal } from "@/components/ui/SheetModal";
 import type { FarmSettings, Role, WageType, Worker, WorkLog } from "@/types/domain";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/components/ui/Toast";
 
 type SubTab = "hours" | "salary" | "daily" | "history";
 
 export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) {
   const confirm = useConfirm();
+  const toast = useToast();
   const navigate = useNavigate();
   const { profile } = useAuth();
   const enabled = !!profile?.farmId;
@@ -42,7 +45,8 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
   const [amountDraft, setAmountDraft] = useState<Record<string, string>>({});
   const [wageFilter, setWageFilter] = useState<WageType | "all">("all");
   const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<"name" | "amount">("name");
+  const [sort, setSort] = useState<"name" | "amount" | "gender">("name");
+  const genderRank = (g?: Gender | null) => (g === "male" ? 0 : g === "female" ? 1 : g === "other" ? 2 : 3);
   const matchesSearch = (name: string) => !search || name.toLowerCase().includes(search.toLowerCase());
 
   // Flexible payout range for hourly workers — defaults to the last 7 days.
@@ -134,8 +138,9 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
     setBusy(true);
     try {
       await payOne(confirmSalary.worker, confirmSalary.amount, { wageType: "monthly", start: cycle.start, end: cycle.end });
+      toast.success(`បង់ប្រាក់ខែ ${confirmSalary.worker.name} ជោគជ័យ`);
       setConfirmSalary(null);
-    } catch (err) { window.alert("បង់ប្រាក់មិនបានជោគជ័យ៖ " + errorMessage(err)); }
+    } catch (err) { toast.error("បង់ប្រាក់មិនបានជោគជ័យ៖ " + errorMessage(err)); }
     finally { setBusy(false); }
   };
 
@@ -148,14 +153,22 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
           hours: r.byDay ? r.days : r.hours, logIds: r.unpaid.map((l) => l.id),
         });
       }
+      toast.success(`បង់ប្រាក់ជោគជ័យ ${selectedRows.length} នាក់`);
       setSelected({});
       setConfirmBatch(false);
-    } catch (err) { window.alert("បង់ប្រាក់មិនបានជោគជ័យ៖ " + errorMessage(err)); }
+    } catch (err) { toast.error("បង់ប្រាក់មិនបានជោគជ័យ៖ " + errorMessage(err)); }
     finally { setBusy(false); }
   };
 
   const visibleHistory = payments.filter((p) => wageFilter === "all" || p.wageType === wageFilter)
-    .sort((a, b) => sort === "name" ? a.paidDate.localeCompare(b.paidDate) * -1 : b.amountKhr - a.amountKhr);
+    .sort((a, b) => {
+      if (sort === "gender") {
+        const ga = workers.find((w) => w.id === a.workerId)?.gender;
+        const gb = workers.find((w) => w.id === b.workerId)?.gender;
+        return genderRank(ga) - genderRank(gb);
+      }
+      return sort === "name" ? a.paidDate.localeCompare(b.paidDate) * -1 : b.amountKhr - a.amountKhr;
+    });
 
   return (
     <div className="pt-1 pb-4">
@@ -204,13 +217,13 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
             <div className="text-[11px] mb-1.5" style={{ color: C.inkSoft }}>កាលបរិច្ឆេទ</div>
             <input type="date" value={logDate} onChange={(e) => setLogDate(e.target.value)} className={inputCls} style={inputStyle} />
           </div>
-          <div className="flex justify-end mb-2"><SortMenu value={sort} options={[{ key: "name", label: "ឈ្មោះ ក-អ" }, { key: "amount", label: "ម៉ោងច្រើនបំផុត" }]} onChange={setSort} /></div>
+          <div className="flex justify-end mb-2"><SortMenu value={sort} options={[{ key: "name", label: "ឈ្មោះ ក-អ" }, { key: "amount", label: "ម៉ោងច្រើនបំផុត" }, { key: "gender", label: "ភេទ" }]} onChange={setSort} /></div>
           {hourlyWorkers.filter((w) => matchesSearch(w.name)).length === 0 ? (
             <EmptyState icon={search ? Search : Clock} title={search ? "រកមិនឃើញកម្មករ" : "គ្មានកម្មករប្រាក់ថ្ងៃ"} hint={search ? `គ្មានកម្មករឈ្មោះត្រូវនឹង "${search}"` : "កម្មករដែលកំណត់ជាប្រភេទ 'ប្រាក់ថ្ងៃ' នឹងបង្ហាញនៅទីនេះ"} />
           ) : (
             <div className="space-y-2">
               {hourlyWorkers.filter((w) => matchesSearch(w.name))
-                .sort((a, b) => sort === "name" ? a.name.localeCompare(b.name, "km") : hoursInCycle(b) - hoursInCycle(a))
+                .sort((a, b) => sort === "name" ? a.name.localeCompare(b.name, "km") : sort === "gender" ? genderRank(a.gender) - genderRank(b.gender) : hoursInCycle(b) - hoursInCycle(a))
                 .map((w) => {
                 const existing = logs.find((l) => l.workerId === w.id && l.date === logDate);
                 const locked = !!existing?.paymentId;
@@ -292,7 +305,7 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
             <EmptyState icon={search ? Search : Clock} title={search ? "រកមិនឃើញកម្មករ" : "គ្មានម៉ោងត្រូវបើកប្រាក់"} hint={search ? `គ្មានកម្មករឈ្មោះត្រូវនឹង "${search}"` : "គ្មានថ្ងៃធ្វើការដែលមិនទាន់បើកប្រាក់ក្នុងចន្លោះថ្ងៃនេះទេ"} />
           ) : (
             <>
-              <div className="flex justify-end mb-2"><SortMenu value={sort} options={[{ key: "name", label: "ឈ្មោះ ក-អ" }, { key: "amount", label: "ចំនួនទឹកប្រាក់ច្រើនបំផុត" }]} onChange={setSort} /></div>
+              <div className="flex justify-end mb-2"><SortMenu value={sort} options={[{ key: "name", label: "ឈ្មោះ ក-អ" }, { key: "amount", label: "ចំនួនទឹកប្រាក់ច្រើនបំផុត" }, { key: "gender", label: "ភេទ" }]} onChange={setSort} /></div>
               <div className="flex items-center justify-between mb-2">
                 <button
                   onClick={() => {
@@ -308,7 +321,7 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
 
               <div className="space-y-2 mb-3">
                 {hourlyRows.filter((r) => matchesSearch(r.worker.name))
-                  .sort((a, b) => sort === "name" ? a.worker.name.localeCompare(b.worker.name, "km") : b.amountKhr - a.amountKhr)
+                  .sort((a, b) => sort === "name" ? a.worker.name.localeCompare(b.worker.name, "km") : sort === "gender" ? genderRank(a.worker.gender) - genderRank(b.worker.gender) : b.amountKhr - a.amountKhr)
                   .map((r) => {
                   const on = !!selected[r.worker.id];
                   return (
@@ -364,13 +377,13 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
             <button onClick={() => setCycle(shiftCycle(cycle, farm.payrollCycleStartDay, 1))} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: C.bgAlt }}><ChevronRight size={15} color={C.ink} /></button>
           </div>
 
-          <div className="flex justify-end mb-2"><SortMenu value={sort} options={[{ key: "name", label: "ឈ្មោះ ក-អ" }, { key: "amount", label: "ចំនួនទឹកប្រាក់ច្រើនបំផុត" }]} onChange={setSort} /></div>
+          <div className="flex justify-end mb-2"><SortMenu value={sort} options={[{ key: "name", label: "ឈ្មោះ ក-អ" }, { key: "amount", label: "ចំនួនទឹកប្រាក់ច្រើនបំផុត" }, { key: "gender", label: "ភេទ" }]} onChange={setSort} /></div>
           {monthlyWorkers.filter((w) => matchesSearch(w.name)).length === 0 ? (
             <EmptyState icon={search ? Search : Wallet} title={search ? "រកមិនឃើញកម្មករ" : "គ្មានកម្មករប្រាក់ខែ"} hint={search ? `គ្មានកម្មករឈ្មោះត្រូវនឹង "${search}"` : "កម្មករដែលកំណត់ជាប្រភេទ 'ប្រាក់ខែ' នឹងបង្ហាញនៅទីនេះ"} />
           ) : (
             <div className="space-y-2">
               {monthlyWorkers.filter((w) => matchesSearch(w.name))
-                .sort((a, b) => sort === "name" ? a.name.localeCompare(b.name, "km") : salaryAmountFor(b) - salaryAmountFor(a))
+                .sort((a, b) => sort === "name" ? a.name.localeCompare(b.name, "km") : sort === "gender" ? genderRank(a.gender) - genderRank(b.gender) : salaryAmountFor(b) - salaryAmountFor(a))
                 .map((w) => {
                 const amount = salaryAmountFor(w);
                 const paid = salaryPaid(w);
@@ -413,7 +426,7 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
               <FilterChip active={wageFilter === "monthly"} onClick={() => setWageFilter("monthly")} label="ប្រាក់ខែ" color={C.greenMid} />
               <FilterChip active={wageFilter === "hourly"} onClick={() => setWageFilter("hourly")} label="ប្រាក់ថ្ងៃ" color={C.blue} />
             </div>
-            <SortMenu value={sort} options={[{ key: "name", label: "ថ្ងៃថ្មីបំផុត" }, { key: "amount", label: "ចំនួនច្រើនបំផុត" }]} onChange={setSort} />
+            <SortMenu value={sort} options={[{ key: "name", label: "ថ្ងៃថ្មីបំផុត" }, { key: "amount", label: "ចំនួនច្រើនបំផុត" }, { key: "gender", label: "ភេទ" }]} onChange={setSort} />
           </div>
           {visibleHistory.length === 0 ? (
             <EmptyState icon={History} title="មិនទាន់មានប្រវត្តិបើកប្រាក់" hint="ការបើកប្រាក់ទាំងអស់នឹងបង្ហាញនៅទីនេះ" />

@@ -13,11 +13,13 @@ import { errorMessage } from "@/lib/errors";
 import { C } from "@/lib/tokens";
 import { EmptyState } from "@/components/ui/primitives";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/components/ui/Toast";
 import { BatchForm } from "@/components/sales/BatchForm";
 
 export function BatchesPage() {
   const navigate = useNavigate();
   const confirm = useConfirm();
+  const toast = useToast();
   const { profile } = useAuth();
   const enabled = !!profile?.farmId;
   const farmQ = useFarmSettings(enabled);
@@ -81,7 +83,7 @@ export function BatchesPage() {
           onClose={() => setFormOpen(false)}
           onSubmit={async (input) => {
             try { await createM.mutateAsync(input); }
-            catch (err) { window.alert("បង្កើតបាច់មិនបានជោគជ័យ៖ " + errorMessage(err)); throw err; }
+            catch (err) { toast.error("បង្កើតបាច់មិនបានជោគជ័យ៖ " + errorMessage(err)); throw err; }
           }}
         />
       )}
