@@ -81,10 +81,10 @@ export function scopeEvents(events: YieldEvent[], treeIds: Set<string>, role: Ro
 export interface TabDef { key: TabKey; label: string; icon: LucideIcon; need: Perm }
 export const APP_TABS: TabDef[] = [
   { key: "home", label: "ទំព័រដើម", icon: Home, need: "view" },
-  { key: "workers", label: "កម្មករ", icon: Users, need: "farm" },
-  { key: "tasks", label: "ការងារ", icon: ClipboardList, need: "tasks" },
-  { key: "payroll", label: "ប្រាក់ឈ្នួល", icon: Wallet, need: "payroll" },
   { key: "trees", label: "ដើមទុរេន", icon: TreePine, need: "farm" },
+  { key: "tasks", label: "ការងារ", icon: ClipboardList, need: "tasks" },
+  { key: "workers", label: "កម្មករ", icon: Users, need: "farm" },
+  { key: "payroll", label: "ប្រាក់ឈ្នួល", icon: Wallet, need: "payroll" },
   { key: "expenses", label: "ចំណាយ", icon: Receipt, need: "addExpense" },
   { key: "sales", label: "លក់", icon: Store, need: "sales" },
   { key: "settings", label: "កំណត់", icon: SettingsIcon, need: "view" },

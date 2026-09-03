@@ -12,6 +12,7 @@ import { fmtCurrency } from "@/lib/currency";
 import { errorMessage } from "@/lib/errors";
 import { C, tint } from "@/lib/tokens";
 import { EmptyState, FilterChip, StatCard, PrimaryButton, Badge } from "@/components/ui/primitives";
+import { SkeletonList } from "@/components/ui/Skeleton";
 import { SortMenu } from "@/components/ui/SortMenu";
 import { SheetModal } from "@/components/ui/SheetModal";
 import { ExpenseForm } from "@/components/expenses/ExpenseForm";
@@ -134,7 +135,9 @@ export function ExpensesPage({ role, farm }: { role: Role; farm: FarmSettings })
             )}
           </div>
 
-          {sorted.length === 0 ? (
+          {expensesQ.isPending ? (
+            <SkeletonList count={5} />
+          ) : sorted.length === 0 ? (
             <EmptyState icon={Wallet} title="មិនទាន់មានកំណត់ត្រាចំណាយ" hint="បន្ថែមចំណាយពីការដាំរហូតដល់លក់" />
           ) : (
             <div className="space-y-2">
@@ -162,7 +165,9 @@ export function ExpensesPage({ role, farm }: { role: Role; farm: FarmSettings })
       )}
 
       {sub === "settle" && (
-        unpaid.length === 0 ? (
+        expensesQ.isPending ? (
+          <SkeletonList count={4} avatar={false} />
+        ) : unpaid.length === 0 ? (
           <EmptyState icon={Check} title="គ្មានចំណាយជំពាក់ទេ" hint="ចំណាយទាំងអស់ត្រូវបានទូទាត់រួច" />
         ) : (
           <>

@@ -10,6 +10,7 @@ import { fmtCurrency, toKhr } from "@/lib/currency";
 import { fmtDate, todayISO } from "@/lib/format";
 import { downloadCSV } from "@/lib/csv";
 import { C } from "@/lib/tokens";
+import { PrintHeader, PrintFooter } from "@/components/ui/PrintLayout";
 import { inputCls, inputStyle } from "@/components/ui/primitives";
 
 type Mode = "daily" | "salary";
@@ -161,11 +162,7 @@ export function PayrollReportPage() {
       </div>
 
       <div className="print-area p-5 lg:p-8 max-w-3xl mx-auto">
-        <h1 className="text-lg font-bold mb-1" style={{ color: C.green }}>{farm?.farmName} — តារាងចំណាយប្រាក់ឈ្នួល</h1>
-        <div className="text-[11px] mb-1" style={{ color: C.inkSoft }}>
-          {mode === "daily" ? `ប្រាក់ថ្ងៃ · ${fmtDate(start)} – ${fmtDate(end)}` : `ប្រាក់ខែ · ${cycle.label}`}
-        </div>
-        <div className="text-[11px] mb-4" style={{ color: C.inkSoft }}>ចេញកាលបរិច្ឆេទ {fmtDate(todayISO())}</div>
+        <PrintHeader farmName={farm?.farmName} farmLogo={farm?.logo} title="តារាងចំណាយប្រាក់ឈ្នួល" subtitle={mode === "daily" ? `ប្រាក់ថ្ងៃ · ${fmtDate(start)} – ${fmtDate(end)}` : `ប្រាក់ខែ · ${cycle.label}`} />
 
         {mode === "daily" ? (
           pivotRows.length === 0 ? (
@@ -257,16 +254,7 @@ export function PayrollReportPage() {
           )
         )}
 
-        <div className="grid grid-cols-2 gap-8 mt-10 text-[11px]" style={{ color: C.inkSoft }}>
-          <div>
-            <div className="mb-10">អ្នករៀបចំ</div>
-            <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 4 }}>ហត្ថលេខា និងឈ្មោះ</div>
-          </div>
-          <div>
-            <div className="mb-10">អ្នកអនុម័ត</div>
-            <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 4 }}>ហត្ថលេខា និងឈ្មោះ</div>
-          </div>
-        </div>
+        <PrintFooter />
       </div>
     </div>
   );

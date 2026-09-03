@@ -10,6 +10,7 @@ import { careInfo } from "@/lib/constants";
 import { fmtDate, todayISO } from "@/lib/format";
 import { C, tint } from "@/lib/tokens";
 import { EmptyState, FilterChip, Badge } from "@/components/ui/primitives";
+import { SkeletonList } from "@/components/ui/Skeleton";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { TaskForm } from "@/components/tasks/TaskForm";
 import type { Role, Task } from "@/types/domain";
@@ -69,7 +70,9 @@ export function TasksPage({ role }: { role: Role }) {
         )}
       </div>
 
-      {visible.length === 0 ? (
+      {tasksQ.isPending ? (
+        <SkeletonList count={4} avatar={false} />
+      ) : visible.length === 0 ? (
         <EmptyState
           icon={ClipboardList}
           title={filter === "done" ? "មិនទាន់មានការងាររួចរាល់" : "គ្មានការងារត្រូវធ្វើ"}

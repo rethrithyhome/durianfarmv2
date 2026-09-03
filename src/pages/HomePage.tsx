@@ -19,6 +19,7 @@ import { fmtCurrency, toKhr } from "@/lib/currency";
 import { cycleFor, cycleWorkedFraction } from "@/lib/payroll";
 import { C, tint } from "@/lib/tokens";
 import { StatCard, Badge } from "@/components/ui/primitives";
+import { SkeletonStatGrid, SkeletonBlock } from "@/components/ui/Skeleton";
 import { YearlyComparisonChart } from "@/components/home/YearlyComparisonChart";
 import type { Role } from "@/types/domain";
 
@@ -125,7 +126,9 @@ export function HomePage({ role }: { role: Role }) {
 
   return (
     <div className="pt-1 pb-4 space-y-4">
-      {showFarm && (
+      {showFarm && treesQ.isPending ? (
+        <SkeletonStatGrid count={4} />
+      ) : showFarm && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <StatCard icon={TreePine} label="ដើមទុរេនសរុប" value={trees.length} sub={`កម្មករ ${workers.length} នាក់`} onClick={() => navigate("/trees")} />
           <StatCard icon={AlertTriangle} label="ត្រូវការការយកចិត្តទុកដាក់" value={needsAttention.length} accent={needsAttention.length ? C.red : C.green} sub="ដើមមានបញ្ហា" onClick={() => navigate("/trees")} />
@@ -151,7 +154,9 @@ export function HomePage({ role }: { role: Role }) {
         </div>
       )}
 
-      {can(role, "farm") && can(role, "sales") && (
+      {can(role, "farm") && can(role, "sales") && (expensesQ.isPending || salesQ.isPending) ? (
+        <SkeletonBlock height={90} />
+      ) : can(role, "farm") && can(role, "sales") && (
         <div className="rounded-2xl p-4" style={{ background: C.card, border: `1px solid ${C.line}` }}>
           <div className="text-sm font-semibold mb-3" style={{ color: C.green }}>សង្ខេបហិរញ្ញវត្ថុ ឆ្នាំ {thisYear}</div>
           <div className="grid grid-cols-3 gap-2 text-center">

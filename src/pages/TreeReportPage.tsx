@@ -8,6 +8,7 @@ import { HEALTH_LEVELS, healthInfo } from "@/lib/constants";
 import { fmtDate, todayISO } from "@/lib/format";
 import { downloadCSV } from "@/lib/csv";
 import { C } from "@/lib/tokens";
+import { PrintHeader, PrintFooter } from "@/components/ui/PrintLayout";
 import { FilterChip } from "@/components/ui/primitives";
 import type { Health } from "@/types/domain";
 
@@ -67,8 +68,7 @@ export function TreeReportPage() {
       </div>
 
       <div className="print-area p-5 lg:p-8 max-w-4xl mx-auto">
-        <h1 className="text-lg font-bold mb-1" style={{ color: C.green }}>{farm?.farmName} — បញ្ជីដើមទុរេន</h1>
-        <div className="text-[11px] mb-4" style={{ color: C.inkSoft }}>ចេញកាលបរិច្ឆេទ {fmtDate(todayISO())} · {rows.length} ដើម</div>
+        <PrintHeader farmName={farm?.farmName} farmLogo={farm?.logo} title="បញ្ជីដើមទុរេន" count={`${rows.length} ដើម`} />
 
         {rows.length === 0 ? (
           <div className="text-xs" style={{ color: C.inkSoft }}>គ្មានទិន្នន័យទេ</div>
@@ -89,6 +89,7 @@ export function TreeReportPage() {
             </tbody>
           </table>
         )}
+        <PrintFooter />
       </div>
     </div>
   );

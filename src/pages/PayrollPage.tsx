@@ -15,6 +15,7 @@ import { GENDER_LABELS, genderColor } from "@/lib/constants";
 import type { Gender } from "@/types/domain";
 import { WorkerAvatar } from "@/components/workers/WorkerAvatar";
 import { StatCard, EmptyState, PrimaryButton, Badge, FilterChip, inputCls, inputStyle } from "@/components/ui/primitives";
+import { SkeletonList } from "@/components/ui/Skeleton";
 import { SortMenu } from "@/components/ui/SortMenu";
 import { Search } from "lucide-react";
 import { SheetModal } from "@/components/ui/SheetModal";
@@ -218,7 +219,9 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
             <input type="date" value={logDate} onChange={(e) => setLogDate(e.target.value)} className={inputCls} style={inputStyle} />
           </div>
           <div className="flex justify-end mb-2"><SortMenu value={sort} options={[{ key: "name", label: "ឈ្មោះ ក-អ" }, { key: "amount", label: "ម៉ោងច្រើនបំផុត" }, { key: "gender", label: "ភេទ" }]} onChange={setSort} /></div>
-          {hourlyWorkers.filter((w) => matchesSearch(w.name)).length === 0 ? (
+          {workersQ.isPending ? (
+            <SkeletonList count={4} />
+          ) : hourlyWorkers.filter((w) => matchesSearch(w.name)).length === 0 ? (
             <EmptyState icon={search ? Search : Clock} title={search ? "រកមិនឃើញកម្មករ" : "គ្មានកម្មករប្រាក់ថ្ងៃ"} hint={search ? `គ្មានកម្មករឈ្មោះត្រូវនឹង "${search}"` : "កម្មករដែលកំណត់ជាប្រភេទ 'ប្រាក់ថ្ងៃ' នឹងបង្ហាញនៅទីនេះ"} />
           ) : (
             <div className="space-y-2">
@@ -301,7 +304,9 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
             </div>
           </div>
 
-          {hourlyRows.filter((r) => matchesSearch(r.worker.name)).length === 0 ? (
+          {workersQ.isPending || logsQ.isPending ? (
+            <SkeletonList count={4} />
+          ) : hourlyRows.filter((r) => matchesSearch(r.worker.name)).length === 0 ? (
             <EmptyState icon={search ? Search : Clock} title={search ? "រកមិនឃើញកម្មករ" : "គ្មានម៉ោងត្រូវបើកប្រាក់"} hint={search ? `គ្មានកម្មករឈ្មោះត្រូវនឹង "${search}"` : "គ្មានថ្ងៃធ្វើការដែលមិនទាន់បើកប្រាក់ក្នុងចន្លោះថ្ងៃនេះទេ"} />
           ) : (
             <>
@@ -378,7 +383,9 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
           </div>
 
           <div className="flex justify-end mb-2"><SortMenu value={sort} options={[{ key: "name", label: "ឈ្មោះ ក-អ" }, { key: "amount", label: "ចំនួនទឹកប្រាក់ច្រើនបំផុត" }, { key: "gender", label: "ភេទ" }]} onChange={setSort} /></div>
-          {monthlyWorkers.filter((w) => matchesSearch(w.name)).length === 0 ? (
+          {workersQ.isPending ? (
+            <SkeletonList count={4} />
+          ) : monthlyWorkers.filter((w) => matchesSearch(w.name)).length === 0 ? (
             <EmptyState icon={search ? Search : Wallet} title={search ? "រកមិនឃើញកម្មករ" : "គ្មានកម្មករប្រាក់ខែ"} hint={search ? `គ្មានកម្មករឈ្មោះត្រូវនឹង "${search}"` : "កម្មករដែលកំណត់ជាប្រភេទ 'ប្រាក់ខែ' នឹងបង្ហាញនៅទីនេះ"} />
           ) : (
             <div className="space-y-2">
@@ -428,7 +435,9 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
             </div>
             <SortMenu value={sort} options={[{ key: "name", label: "ថ្ងៃថ្មីបំផុត" }, { key: "amount", label: "ចំនួនច្រើនបំផុត" }, { key: "gender", label: "ភេទ" }]} onChange={setSort} />
           </div>
-          {visibleHistory.length === 0 ? (
+          {paymentsQ.isPending ? (
+            <SkeletonList count={4} avatar={false} />
+          ) : visibleHistory.length === 0 ? (
             <EmptyState icon={History} title="មិនទាន់មានប្រវត្តិបើកប្រាក់" hint="ការបើកប្រាក់ទាំងអស់នឹងបង្ហាញនៅទីនេះ" />
           ) : (
             <div className="space-y-2">

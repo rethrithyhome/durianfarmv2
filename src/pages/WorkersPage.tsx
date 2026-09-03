@@ -6,6 +6,7 @@ import { useWorkers, useCreateWorker, useUpdateWorker, useDeleteWorker } from "@
 import { can } from "@/lib/permissions";
 import { C } from "@/lib/tokens";
 import { Badge, EmptyState, FilterChip, StatCard } from "@/components/ui/primitives";
+import { SkeletonList } from "@/components/ui/Skeleton";
 import { SortMenu } from "@/components/ui/SortMenu";
 import { fmtDate } from "@/lib/format";
 import { GENDER_LABELS, genderColor } from "@/lib/constants";
@@ -96,7 +97,9 @@ export function WorkersPage({ role, farm }: { role: Role; farm: FarmSettings }) 
         <SortMenu value={sort} options={SORT_OPTIONS} onChange={setSort} />
       </div>
 
-      {filtered.length === 0 ? (
+      {workersQ.isPending ? (
+        <SkeletonList count={5} />
+      ) : filtered.length === 0 ? (
         <EmptyState icon={Users} title="មិនទាន់មានកម្មករ" hint="បន្ថែមកម្មករដំបូងរបស់អ្នក" />
       ) : (
         <div className="space-y-2">

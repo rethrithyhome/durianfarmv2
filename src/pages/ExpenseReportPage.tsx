@@ -9,6 +9,7 @@ import { fmtCurrency } from "@/lib/currency";
 import { fmtDate, todayISO } from "@/lib/format";
 import { downloadCSV } from "@/lib/csv";
 import { C } from "@/lib/tokens";
+import { PrintHeader, PrintFooter } from "@/components/ui/PrintLayout";
 import { inputCls, inputStyle } from "@/components/ui/primitives";
 
 export function ExpenseReportPage() {
@@ -81,9 +82,7 @@ export function ExpenseReportPage() {
       </div>
 
       <div className="print-area p-5 lg:p-8 max-w-3xl mx-auto">
-        <h1 className="text-lg font-bold mb-1" style={{ color: C.green }}>{farm?.farmName} — តារាងចំណាយ</h1>
-        <div className="text-[11px] mb-1" style={{ color: C.inkSoft }}>{fmtDate(start)} – {fmtDate(end)}</div>
-        <div className="text-[11px] mb-4" style={{ color: C.inkSoft }}>ចេញកាលបរិច្ឆេទ {fmtDate(todayISO())}</div>
+        <PrintHeader farmName={farm?.farmName} farmLogo={farm?.logo} title="តារាងចំណាយ" subtitle={`${fmtDate(start)} – ${fmtDate(end)}`} />
 
         <div className="grid grid-cols-2 gap-2 mb-4">
           <div className="rounded-xl p-2.5 text-center" style={{ border: `1px solid ${C.line}` }}><div className="text-sm font-bold" style={{ color: C.red }}>{fmtCurrency(total, "KHR")}</div><div className="text-[10px]" style={{ color: C.inkSoft }}>ចំណាយសរុប</div></div>
@@ -128,16 +127,7 @@ export function ExpenseReportPage() {
           </>
         )}
 
-        <div className="grid grid-cols-2 gap-8 mt-10 text-[11px]" style={{ color: C.inkSoft }}>
-          <div>
-            <div className="mb-10">អ្នករៀបចំ</div>
-            <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 4 }}>ហត្ថលេខា និងឈ្មោះ</div>
-          </div>
-          <div>
-            <div className="mb-10">អ្នកអនុម័ត</div>
-            <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 4 }}>ហត្ថលេខា និងឈ្មោះ</div>
-          </div>
-        </div>
+        <PrintFooter />
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -27,9 +27,10 @@ import { BatchesPage } from "@/pages/BatchesPage";
 import { PublicTracePage } from "@/pages/PublicTracePage";
 import { DurianMark } from "@/components/ui/DurianMark";
 import { Sidebar } from "@/components/layout/Sidebar";
-import { C, R, SHADOW } from "@/lib/tokens";
+import { SheetModal } from "@/components/ui/SheetModal";
+import { C, R, SHADOW, tint } from "@/lib/tokens";
 import { APP_TABS, getVisibleTabs, roleInfo } from "@/lib/permissions";
-import { LogOut, WifiOff } from "lucide-react";
+import { LogOut, WifiOff, MoreHorizontal } from "lucide-react";
 import * as api from "@/api";
 import type { FarmSettings, Role, TabKey } from "@/types/domain";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
@@ -54,25 +55,63 @@ function BottomNav({ role, visibility }: { role: Role; visibility: FarmSettings[
   const location = useLocation();
   const navigate = useNavigate();
   const currentTab = currentTabKey(location.pathname);
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  // More than 5 tabs is cramped on a phone screen — keep the first 4
+  // directly reachable and tuck the rest behind a "More" sheet instead
+  // of shrinking every icon to fit.
+  const MAX_VISIBLE = 4;
+  const overflowing = tabs.length > MAX_VISIBLE + 1;
+  const primary = overflowing ? tabs.slice(0, MAX_VISIBLE) : tabs;
+  const overflow = overflowing ? tabs.slice(MAX_VISIBLE) : [];
+  const overflowActive = overflow.some((t) => t.key === currentTab);
+
+  const go = (key: TabKey) => { navigate(key === "home" ? "/" : `/${key}`); setMoreOpen(false); };
+
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-30 flex justify-center no-print lg:hidden">
-      <div className="w-full max-w-md px-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
-        <div className="flex items-center justify-between px-1 py-1.5" style={{ background: `linear-gradient(135deg, ${C.green}, ${C.greenMid})`, borderRadius: R.lg, boxShadow: SHADOW.float }}>
-          {tabs.map((it) => {
-            const Icon = it.icon;
-            const activeItem = currentTab === it.key || (it.key === "home" && location.pathname === "/");
-            const path = it.key === "home" ? "/" : `/${it.key}`;
-            return (
-              <button key={it.key} onClick={() => navigate(path)} className="relative flex-1 flex flex-col items-center gap-0.5 py-1.5" style={{ background: activeItem ? "rgba(255,255,255,0.14)" : "transparent", borderRadius: R.base }}>
-                {activeItem && <span className="absolute -top-0.5 w-6 h-0.5 rounded-full" style={{ background: C.gold }} />}
-                <Icon size={17} color={activeItem ? C.gold : "#C9D2C4"} />
-                <span className="text-[9px] font-medium" style={{ color: activeItem ? "#fff" : "#B7C2B1" }}>{it.label}</span>
+    <>
+      <div className="fixed bottom-0 left-0 right-0 z-30 flex justify-center no-print lg:hidden">
+        <div className="w-full max-w-md px-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+          <div className="flex items-center justify-between px-1 py-1.5" style={{ background: `linear-gradient(135deg, ${C.green}, ${C.greenMid})`, borderRadius: R.lg, boxShadow: SHADOW.float }}>
+            {primary.map((it) => {
+              const Icon = it.icon;
+              const activeItem = currentTab === it.key || (it.key === "home" && location.pathname === "/");
+              return (
+                <button key={it.key} onClick={() => go(it.key)} className="relative flex-1 flex flex-col items-center gap-0.5 py-1.5" style={{ background: activeItem ? "rgba(255,255,255,0.14)" : "transparent", borderRadius: R.base }}>
+                  {activeItem && <span className="absolute -top-0.5 w-6 h-0.5 rounded-full" style={{ background: C.gold }} />}
+                  <Icon size={17} color={activeItem ? C.gold : "#C9D2C4"} />
+                  <span className="text-[9px] font-medium" style={{ color: activeItem ? "#fff" : "#B7C2B1" }}>{it.label}</span>
+                </button>
+              );
+            })}
+            {overflow.length > 0 && (
+              <button onClick={() => setMoreOpen(true)} className="relative flex-1 flex flex-col items-center gap-0.5 py-1.5" style={{ background: overflowActive ? "rgba(255,255,255,0.14)" : "transparent", borderRadius: R.base }}>
+                {overflowActive && <span className="absolute -top-0.5 w-6 h-0.5 rounded-full" style={{ background: C.gold }} />}
+                <MoreHorizontal size={17} color={overflowActive ? C.gold : "#C9D2C4"} />
+                <span className="text-[9px] font-medium" style={{ color: overflowActive ? "#fff" : "#B7C2B1" }}>បន្ថែម</span>
               </button>
-            );
-          })}
+            )}
+          </div>
         </div>
       </div>
-    </div>
+
+      {moreOpen && (
+        <SheetModal title="ម៉ឺនុយបន្ថែម" onClose={() => setMoreOpen(false)}>
+          <div className="grid grid-cols-3 gap-2.5">
+            {overflow.map((it) => {
+              const Icon = it.icon;
+              const active = currentTab === it.key;
+              return (
+                <button key={it.key} onClick={() => go(it.key)} className="flex flex-col items-center gap-1.5 rounded-2xl p-3.5" style={{ background: active ? tint(C.green, 12) : C.bgAlt, border: `1.5px solid ${active ? C.green : "transparent"}` }}>
+                  <Icon size={20} color={active ? C.green : C.ink} />
+                  <span className="text-[11px] font-medium text-center" style={{ color: active ? C.green : C.ink }}>{it.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </SheetModal>
+      )}
+    </>
   );
 }
 

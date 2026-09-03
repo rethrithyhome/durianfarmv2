@@ -6,6 +6,7 @@ import { useAuditLogs } from "@/hooks/useAudit";
 import { AUDIT_TABLE_LABELS, AUDIT_ACTION_LABELS, type AuditAction } from "@/api/audit";
 import { C, tint } from "@/lib/tokens";
 import { EmptyState, FilterChip } from "@/components/ui/primitives";
+import { SkeletonList } from "@/components/ui/Skeleton";
 
 const ACTION_STYLE: Record<AuditAction, { color: string; icon: typeof Plus }> = {
   INSERT: { color: "#3D6B4F", icon: Plus },
@@ -59,7 +60,9 @@ export function AuditLogPage() {
         </div>
       )}
 
-      {filtered.length === 0 ? (
+      {logsQ.isPending ? (
+        <SkeletonList count={5} avatar={false} />
+      ) : filtered.length === 0 ? (
         <EmptyState icon={History} title="មិនទាន់មានប្រវត្តិ" hint="រាល់ការបន្ថែម កែសម្រួល និងលុប នឹងកត់ត្រានៅទីនេះដោយស្វ័យប្រវត្តិ" />
       ) : (
         <div className="space-y-2">

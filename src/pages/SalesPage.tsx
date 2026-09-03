@@ -10,6 +10,7 @@ import { fmtDate } from "@/lib/format";
 import { fmtCurrency } from "@/lib/currency";
 import { C } from "@/lib/tokens";
 import { Badge, EmptyState } from "@/components/ui/primitives";
+import { SkeletonList } from "@/components/ui/Skeleton";
 import { SortMenu } from "@/components/ui/SortMenu";
 import { LocationForm } from "@/components/sales/LocationForm";
 import { CustomerForm } from "@/components/sales/CustomerForm";
@@ -70,7 +71,9 @@ export function SalesPage({ role, farm }: { role: Role; farm: FarmSettings }) {
       {sub === "locations" && (
         <>
           <div className="flex justify-end mb-3">{can(role, "addLocation") && <button onClick={() => setLocModal({ mode: "add" })} className="flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold" style={{ background: C.green, color: "#fff" }}><Plus size={13} /> ទីតាំងថ្មី</button>}</div>
-          {locations.length === 0 ? (
+          {locationsQ.isPending ? (
+            <SkeletonList count={3} avatar={false} />
+          ) : locations.length === 0 ? (
             <EmptyState icon={Store} title="មិនទាន់មានទីតាំងលក់" hint="បន្ថែមទីតាំងលក់ (ផ្សារ, ហាង ។ល។)" />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
@@ -97,7 +100,9 @@ export function SalesPage({ role, farm }: { role: Role; farm: FarmSettings }) {
       {sub === "customers" && (
         <>
           <div className="flex justify-end mb-3">{can(role, "addCustomer") && <button onClick={() => setCustModal({ mode: "add" })} className="flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold" style={{ background: C.green, color: "#fff" }}><Plus size={13} /> អតិថិជនថ្មី</button>}</div>
-          {customers.length === 0 ? (
+          {customersQ.isPending ? (
+            <SkeletonList count={3} avatar={false} />
+          ) : customers.length === 0 ? (
             <EmptyState icon={User} title="មិនទាន់មានអតិថិជន" hint="កត់ត្រាអតិថិជនលក់រាយ និងលក់ដុំ ដើម្បីជាទិន្នន័យសម្រាប់ឆ្នាំក្រោយៗ" />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
@@ -132,7 +137,9 @@ export function SalesPage({ role, farm }: { role: Role; farm: FarmSettings }) {
             {can(role, "addSale") && <button onClick={() => setSaleModal({ mode: "add" })} className="flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold" style={{ background: C.green, color: "#fff" }}><Plus size={13} /> ការលក់ថ្មី</button>}
             <SortMenu value={sort} options={SORT_OPTIONS} onChange={setSort} />
           </div>
-          {sortedSales.length === 0 ? (
+          {salesQ.isPending ? (
+            <SkeletonList count={4} avatar={false} />
+          ) : sortedSales.length === 0 ? (
             <EmptyState icon={Package} title="មិនទាន់មានកំណត់ត្រាលក់" hint="កត់ត្រាការលក់ដើម្បីតាមដានចំណូល" />
           ) : (
             <div className="space-y-2">

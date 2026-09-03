@@ -7,6 +7,7 @@ import { can } from "@/lib/permissions";
 import { HEALTH_LEVELS, healthInfo } from "@/lib/constants";
 import { C } from "@/lib/tokens";
 import { Badge, EmptyState, FilterChip } from "@/components/ui/primitives";
+import { SkeletonList } from "@/components/ui/Skeleton";
 import { DurianMark } from "@/components/ui/DurianMark";
 import { SortMenu } from "@/components/ui/SortMenu";
 import { TreeForm } from "@/components/trees/TreeForm";
@@ -78,7 +79,9 @@ export function TreesPage({ role, scopedPlots }: { role: Role; scopedPlots: stri
         <SortMenu value={sort} options={SORT_OPTIONS} onChange={setSort} />
       </div>
 
-      {filtered.length === 0 ? (
+      {treesQ.isPending ? (
+        <SkeletonList count={5} />
+      ) : filtered.length === 0 ? (
         <EmptyState icon={TreePine} title="មិនទាន់មានដើមទុរេន" hint="ចុចប៊ូតុង + ដើម្បីបន្ថែមដើមទុរេន" />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
