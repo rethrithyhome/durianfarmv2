@@ -40,38 +40,48 @@ export function PayrollReportPage() {
   const payments = paymentsQ.data ?? [];
   const rate = farm?.exchangeRate ?? 4100;
 
-  /* One row per (worker, day) within the chosen range — a full ledger,
-     not an aggregate — so each day's actual pay is visible on its own
-     line. Useful both as a payment request and as a record afterwards. */
-  const dailyLedger = useMemo(() => {
-    const rows = workers
-      .filter((w) => w.wageType === "hourly")
-      .flatMap((w) => {
-        const byDay = w.dailyRateMode === "daily";
-        return logs
-          .filter((l) => l.workerId === w.id && l.date >= start && l.date <= end)
-          .filter((l) => (byDay ? l.dayAmount != null : l.hours > 0))
-          .map((l) => {
-            const amount = byDay ? (l.dayAmount ?? 0) : l.hours * w.wageRate;
-            return {
-              date: l.date, worker: w, byDay, hours: l.hours, dayAmount: l.dayAmount,
-              amount, amountKhr: toKhr(amount, w.wageCurrency, rate), paid: !!l.paymentId,
-            };
-          });
-      });
-    rows.sort((a, b) => a.date.localeCompare(b.date) || a.worker.name.localeCompare(b.worker.name, "km"));
-    return rows;
-  }, [workers, logs, start, end, rate]);
-
-  const dailySummary = useMemo(() => {
-    const byWorker = new Map<string, { worker: (typeof dailyLedger)[number]["worker"]; amountKhr: number; days: number }>();
-    for (const r of dailyLedger) {
-      const cur = byWorker.get(r.worker.id) ?? { worker: r.worker, amountKhr: 0, days: 0 };
-      cur.amountKhr += r.amountKhr; cur.days += 1;
-      byWorker.set(r.worker.id, cur);
+  /* Pivot: one row per worker, one column per date worked. This reads
+     like a real payroll sheet — pick a worker's row and scan across to
+     see exactly what they earned each day, at a glance. */
+  const dateList = useMemo(() => {
+    const set = new Set<string>();
+    for (const w of workers) {
+      if (w.wageType !== "hourly") continue;
+      const byDay = w.dailyRateMode === "daily";
+      for (const l of logs) {
+        if (l.workerId !== w.id || l.date < start || l.date > end) continue;
+        if (byDay ? l.dayAmount != null : l.hours > 0) set.add(l.date);
+      }
     }
-    return Array.from(byWorker.values());
-  }, [dailyLedger]);
+    return Array.from(set).sort();
+  }, [workers, logs, start, end]);
+
+  type PivotCell = { amount: number; paid: boolean } | null;
+  const pivotRows = useMemo(() => {
+    return workers
+      .filter((w) => w.wageType === "hourly")
+      .map((w) => {
+        const byDay = w.dailyRateMode === "daily";
+        const cells: PivotCell[] = dateList.map((date) => {
+          const log = logs.find((l) => l.workerId === w.id && l.date === date);
+          if (!log) return null;
+          const has = byDay ? log.dayAmount != null : log.hours > 0;
+          if (!has) return null;
+          const amount = byDay ? (log.dayAmount ?? 0) : log.hours * w.wageRate;
+          return { amount, paid: !!log.paymentId };
+        });
+        const present = cells.filter((c): c is { amount: number; paid: boolean } => c !== null);
+        const total = present.reduce((s, c) => s + c.amount, 0);
+        const totalKhr = toKhr(total, w.wageCurrency, rate);
+        const paidCount = present.filter((c) => c.paid).length;
+        const status = present.length === 0 ? "—" : paidCount === present.length ? "បង់រួច" : paidCount === 0 ? "មិនទាន់បង់" : "បង់ខ្លះ";
+        return { worker: w, cells, total, totalKhr, status };
+      })
+      .filter((r) => r.cells.some((c) => c !== null))
+      .sort((a, b) => a.worker.name.localeCompare(b.worker.name, "km"));
+  }, [workers, logs, dateList, rate]);
+
+  const shortDate = (iso: string) => { const d = new Date(iso); return `${d.getDate()}/${d.getMonth() + 1}`; };
 
   /* Salaried workers for the chosen cycle */
   const salaryRows = useMemo(() => workers
@@ -85,20 +95,19 @@ export function PayrollReportPage() {
     .filter((r) => r.amount > 0), [workers, payments, cycle, rate]);
 
 
-  const dailyTotal = dailyLedger.reduce((s, r) => s + r.amountKhr, 0);
+  const dailyTotal = pivotRows.reduce((s, r) => s + r.totalKhr, 0);
   const salaryTotal = salaryRows.reduce((s, r) => s + r.amountKhr, 0);
 
   const exportCSV = () => {
     if (mode === "daily") {
       downloadCSV(`payroll-daily-${start}_${end}.csv`, [
-        ["ថ្ងៃ", "ឈ្មោះ", "ភេទ", "របៀបគិត", "ម៉ោង/ចំនួនប្រាក់ថ្ងៃនោះ", "ចំនួនទឹកប្រាក់", "សរុប (៛)", "ស្ថានភាព"],
-        ...dailyLedger.map((r) => [
-          r.date, r.worker.name, r.worker.gender ?? "", r.byDay ? "ថេរប្រែប្រួល/ថ្ងៃ" : "តាមម៉ោង",
-          r.byDay ? fmtCurrency(r.dayAmount ?? 0, r.worker.wageCurrency) : `${r.hours} ម៉ោង`,
-          r.amount, Math.round(r.amountKhr), r.paid ? "បើករួច" : "មិនទាន់បើក",
+        ["ឈ្មោះ", ...dateList.map(shortDate), "សរុប", "រូបិយប័ណ្ណ", "សរុប (៛)", "ស្ថានភាព"],
+        ...pivotRows.map((r) => [
+          r.worker.name, ...r.cells.map((c) => (c ? Math.round(c.amount) : "")),
+          Math.round(r.total), r.worker.wageCurrency, Math.round(r.totalKhr), r.status,
         ]),
-        ["", "", "", "", "", "", "", ""],
-        ["", "", "", "", "", "សរុប", Math.round(dailyTotal), ""],
+        ["", ...dateList.map(() => ""), "", "", "", ""],
+        ["សរុប", ...dateList.map(() => ""), "", "", Math.round(dailyTotal), ""],
       ]);
     } else {
       downloadCSV(`payroll-salary-${cycle.start}_${cycle.end}.csv`, [
@@ -159,41 +168,66 @@ export function PayrollReportPage() {
         <div className="text-[11px] mb-4" style={{ color: C.inkSoft }}>ចេញកាលបរិច្ឆេទ {fmtDate(todayISO())}</div>
 
         {mode === "daily" ? (
-          dailyLedger.length === 0 ? (
+          pivotRows.length === 0 ? (
             <div className="text-xs" style={{ color: C.inkSoft }}>គ្មានទិន្នន័យក្នុងចន្លោះថ្ងៃនេះទេ</div>
           ) : (
             <>
-              <table className="w-full text-[11px] mb-5" style={{ borderCollapse: "collapse" }}>
-                <thead><tr>{["ថ្ងៃ", "ឈ្មោះ", "របៀបគិត", "ម៉ោង/ថ្ងៃនោះ", "ចំនួនទឹកប្រាក់", "ស្ថានភាព"].map((h) => <th key={h} className="text-left p-1.5" style={th}>{h}</th>)}</tr></thead>
+              {dateList.length > 10 && (
+                <div className="text-[10px] mb-2" style={{ color: C.goldDeep }}>ណែនាំបោះពុម្ព A4 ផ្ដេក (landscape) ព្រោះមានច្រើនថ្ងៃ</div>
+              )}
+              <div className="overflow-x-auto mb-2 no-print" style={{ border: `1px solid ${C.line}`, borderRadius: 8 }}>
+                <table className="text-[11px]" style={{ borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      <th className="text-left p-1.5 sticky left-0" style={{ ...th, zIndex: 1 }}>ឈ្មោះ</th>
+                      {dateList.map((d) => <th key={d} className="text-center p-1.5 whitespace-nowrap" style={th}>{shortDate(d)}</th>)}
+                      <th className="text-right p-1.5 whitespace-nowrap" style={th}>សរុប</th>
+                      <th className="text-left p-1.5 whitespace-nowrap" style={th}>ស្ថានភាព</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pivotRows.map((r) => (
+                      <tr key={r.worker.id}>
+                        <td className="p-1.5 font-medium sticky left-0 whitespace-nowrap" style={{ ...td, background: C.card }}>{r.worker.name}</td>
+                        {r.cells.map((c, i) => (
+                          <td key={i} className="text-center p-1.5 whitespace-nowrap" style={{ ...td, color: c ? (c.paid ? C.greenMid : C.goldDeep) : C.inkSoft }}>
+                            {c ? c.amount.toLocaleString() : "–"}
+                          </td>
+                        ))}
+                        <td className="text-right p-1.5 font-semibold whitespace-nowrap" style={td}>{fmtCurrency(r.total, r.worker.wageCurrency)}</td>
+                        <td className="p-1.5 whitespace-nowrap" style={td}>{r.status}</td>
+                      </tr>
+                    ))}
+                    <tr>
+                      <td className="p-1.5 font-semibold sticky left-0" style={{ ...td, background: C.bgAlt }} colSpan={dateList.length + 1}>សរុបទាំងអស់</td>
+                      <td className="p-1.5 font-semibold" style={{ ...td, background: C.bgAlt }} colSpan={2}>{fmtCurrency(dailyTotal, "KHR")}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              {/* Simplified print-only version — the sticky/scroll table above is for screen use */}
+              <table className="hidden print:table w-full text-[10px]" style={{ borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    <th className="text-left p-1" style={th}>ឈ្មោះ</th>
+                    {dateList.map((d) => <th key={d} className="text-center p-1" style={th}>{shortDate(d)}</th>)}
+                    <th className="text-right p-1" style={th}>សរុប</th>
+                    <th className="text-left p-1" style={th}>ស្ថានភាព</th>
+                  </tr>
+                </thead>
                 <tbody>
-                  {dailyLedger.map((r, i) => (
-                    <tr key={i}>
-                      <td className="p-1.5" style={td}>{fmtDate(r.date)}</td>
-                      <td className="p-1.5" style={td}>{r.worker.name}</td>
-                      <td className="p-1.5" style={td}>{r.byDay ? "ថេរប្រែប្រួល/ថ្ងៃ" : "តាមម៉ោង"}</td>
-                      <td className="p-1.5" style={td}>{r.byDay ? fmtCurrency(r.dayAmount ?? 0, r.worker.wageCurrency) : `${r.hours} ម៉ោង`}</td>
-                      <td className="p-1.5" style={td}>{fmtCurrency(r.amount, r.worker.wageCurrency)}{r.worker.wageCurrency === "USD" ? ` (≈${fmtCurrency(r.amountKhr, "KHR")})` : ""}</td>
-                      <td className="p-1.5" style={td}>{r.paid ? "បើករួច" : "មិនទាន់បើក"}</td>
+                  {pivotRows.map((r) => (
+                    <tr key={r.worker.id}>
+                      <td className="p-1 font-medium" style={td}>{r.worker.name}</td>
+                      {r.cells.map((c, i) => <td key={i} className="text-center p-1" style={td}>{c ? c.amount.toLocaleString() : "–"}</td>)}
+                      <td className="text-right p-1 font-semibold" style={td}>{fmtCurrency(r.total, r.worker.wageCurrency)}</td>
+                      <td className="p-1" style={td}>{r.status}</td>
                     </tr>
                   ))}
                   <tr>
-                    <td className="p-1.5 font-semibold" style={{ ...td, background: C.bgAlt }} colSpan={4}>សរុប</td>
-                    <td className="p-1.5 font-semibold" style={{ ...td, background: C.bgAlt }} colSpan={2}>{fmtCurrency(dailyTotal, "KHR")}</td>
+                    <td className="p-1 font-semibold" style={{ ...td, background: C.bgAlt }} colSpan={dateList.length + 1}>សរុបទាំងអស់</td>
+                    <td className="p-1 font-semibold" style={{ ...td, background: C.bgAlt }} colSpan={2}>{fmtCurrency(dailyTotal, "KHR")}</td>
                   </tr>
-                </tbody>
-              </table>
-
-              <h2 className="text-sm font-bold mb-2" style={{ color: C.green }}>សង្ខេបតាមកម្មករ</h2>
-              <table className="w-full text-[11px]" style={{ borderCollapse: "collapse" }}>
-                <thead><tr>{["ឈ្មោះ", "ចំនួនថ្ងៃ", "សរុប (៛)"].map((h) => <th key={h} className="text-left p-1.5" style={th}>{h}</th>)}</tr></thead>
-                <tbody>
-                  {dailySummary.map((r) => (
-                    <tr key={r.worker.id}>
-                      <td className="p-1.5" style={td}>{r.worker.name}</td>
-                      <td className="p-1.5" style={td}>{r.days}</td>
-                      <td className="p-1.5" style={td}>{fmtCurrency(r.amountKhr, "KHR")}</td>
-                    </tr>
-                  ))}
                 </tbody>
               </table>
             </>

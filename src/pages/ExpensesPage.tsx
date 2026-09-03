@@ -39,6 +39,7 @@ export function ExpensesPage({ role, farm }: { role: Role; farm: FarmSettings })
 
   const [sub, setSub] = useState<SubTab>("list");
   const [catFilter, setCatFilter] = useState<Set<Expense["category"]>>(new Set());
+  const [monthFilter, setMonthFilter] = useState(""); // "" = all time, else "YYYY-MM"
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sort, setSort] = useState<SortKey>("recent");
   const [modal, setModal] = useState<{ mode: "add" | "edit"; expense?: Expense } | null>(null);
@@ -54,12 +55,13 @@ export function ExpensesPage({ role, farm }: { role: Role; farm: FarmSettings })
   const sorted = useMemo(() => {
     let list = catFilter.size === 0 ? expenses : expenses.filter((e) => catFilter.has(e.category));
     if (statusFilter !== "all") list = list.filter((e) => (statusFilter === "paid" ? e.paid : !e.paid));
+    if (monthFilter) list = list.filter((e) => e.date.startsWith(monthFilter));
     list = [...list];
     if (sort === "recent") list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     else if (sort === "amount") list.sort((a, b) => b.amountKhr - a.amountKhr);
     else if (sort === "category") list.sort((a, b) => a.category.localeCompare(b.category));
     return list;
-  }, [expenses, catFilter, statusFilter, sort]);
+  }, [expenses, catFilter, statusFilter, monthFilter, sort]);
 
   const total = sorted.reduce((s, e) => s + e.amountKhr, 0);
   const selectedIds = Object.keys(selected).filter((id) => selected[id]);
@@ -85,7 +87,7 @@ export function ExpensesPage({ role, farm }: { role: Role; farm: FarmSettings })
       )}
 
       <div className="grid grid-cols-2 gap-3 mb-3">
-        <StatCard icon={Wallet} label="ចំណាយសរុប" value={fmtCurrency(total, "KHR")} accent={C.green} />
+        <StatCard icon={Wallet} label="ចំណាយសរុប" value={fmtCurrency(total, "KHR")} accent={C.green} sub={monthFilter ? new Date(monthFilter + "-01").toLocaleDateString("km", { year: "numeric", month: "long" }) : undefined} />
         <StatCard icon={Store} label="នៅជំពាក់" value={fmtCurrency(totalDebtKhr, "KHR")} accent={unpaid.length ? C.goldDeep : C.greenMid} sub={`${unpaid.length} ធាតុ`} />
       </div>
 
@@ -105,8 +107,18 @@ export function ExpensesPage({ role, farm }: { role: Role; farm: FarmSettings })
             <FilterChip active={statusFilter === "paid"} onClick={() => setStatusFilter("paid")} label="បង់រួច" color={C.greenMid} />
             <FilterChip active={statusFilter === "unpaid"} onClick={() => setStatusFilter("unpaid")} label="ជំពាក់" color={C.goldDeep} />
           </div>
-          <div className="flex mb-3">
+          <div className="flex items-center gap-2 mb-3">
             <MultiSelectFilter label="ប្រភេទ" options={EXPENSE_CATEGORIES} selected={catFilter} onChange={setCatFilter} />
+            <input
+              type="month"
+              value={monthFilter}
+              onChange={(e) => setMonthFilter(e.target.value)}
+              className="rounded-xl px-3 py-2 text-[11px] font-medium outline-none"
+              style={{ background: monthFilter ? tint(C.greenMid, 12) : C.card, border: `1px solid ${monthFilter ? C.greenMid : C.line}`, color: monthFilter ? C.greenMid : C.inkSoft }}
+            />
+            {monthFilter && (
+              <button onClick={() => setMonthFilter("")} className="text-[11px] font-semibold shrink-0" style={{ color: C.red }}>សម្អាត</button>
+            )}
           </div>
 
           {sorted.length === 0 ? (

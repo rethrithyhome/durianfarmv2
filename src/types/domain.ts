@@ -84,6 +84,8 @@ export interface Tree {
   health: Health;
   notes?: string | null;
   photo?: string | null;
+  lat?: number | null;
+  lng?: number | null;
 }
 
 export interface CareLog {
@@ -221,4 +223,32 @@ export interface Task {
   completedAt?: string | null;
   completedBy?: string | null;
   createdBy?: string | null;
+}
+
+export interface HarvestBatch {
+  id: string;
+  batchCode: string;
+  packedDate: string;
+  destination?: string | null;
+  notes?: string | null;
+  eventIds: string[]; // yield_event ids included in this batch
+}
+
+export interface TraceTreeInfo {
+  treeCode: string;
+  plot?: string | null;
+  variety?: string | null;
+  harvestDate: string;
+  quantity: number;
+  weightKg?: number | null;
+  careLogs: { date: string; type: string; note?: string | null }[];
+}
+
+export interface TraceBatchResult {
+  farmName: string;
+  farmLogo?: string | null;
+  batchCode: string;
+  packedDate: string;
+  destination?: string | null;
+  trees: TraceTreeInfo[];
 }

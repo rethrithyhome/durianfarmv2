@@ -5,11 +5,16 @@ import type { Health, Tree } from "@/types/domain";
 interface TreeRow {
   id: string; code: string; plot: string | null; variety: string | null; planted_date: string | null;
   health: Health; notes: string | null; photo_url: string | null;
+  lat: number | null; lng: number | null;
 }
-const fromRow = (r: TreeRow): Tree => ({ id: r.id, code: r.code, plot: r.plot, variety: r.variety, plantedDate: r.planted_date, health: r.health, notes: r.notes, photo: r.photo_url });
+const fromRow = (r: TreeRow): Tree => ({
+  id: r.id, code: r.code, plot: r.plot, variety: r.variety, plantedDate: r.planted_date,
+  health: r.health, notes: r.notes, photo: r.photo_url, lat: r.lat, lng: r.lng,
+});
 const toRow = (t: Partial<Tree>, farmId: string) => ({
   farm_id: farmId, code: t.code, plot: t.plot || null, variety: t.variety || null,
   planted_date: t.plantedDate || null, health: t.health, notes: t.notes || null, photo_url: t.photo || null,
+  lat: t.lat ?? null, lng: t.lng ?? null,
 });
 
 export async function listTrees(farmId: string = DEFAULT_FARM_ID): Promise<Tree[]> {

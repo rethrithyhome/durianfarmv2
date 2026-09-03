@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Store, Package, Truck, User } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Plus, Pencil, Trash2, Store, Package, Truck, User, QrCode } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocations, useCreateLocation, useUpdateLocation, useDeleteLocation, useCustomers, useCreateCustomer, useUpdateCustomer, useDeleteCustomer, useSales, useCreateSale, useUpdateSale, useDeleteSale } from "@/hooks/useSales";
 import { useEvents } from "@/hooks/useYield";
@@ -20,6 +21,7 @@ type SortKey = "recent" | "amount";
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [{ key: "recent", label: "កាលបរិច្ឆេទ" }, { key: "amount", label: "ចំនួនទឹកប្រាក់" }];
 
 export function SalesPage({ role, farm }: { role: Role; farm: FarmSettings }) {
+  const navigate = useNavigate();
   const confirm = useConfirm();
   const { profile } = useAuth();
   const enabled = !!profile?.farmId;
@@ -54,6 +56,11 @@ export function SalesPage({ role, farm }: { role: Role; farm: FarmSettings }) {
 
   return (
     <div className="pt-1 pb-4">
+      {can(role, "viewReports") && (
+        <button onClick={() => navigate("/batches")} className="w-full flex items-center justify-center gap-2 rounded-2xl py-2.5 mb-3 text-xs font-semibold" style={{ background: C.card, border: `1px solid ${C.line}`, color: C.green }}>
+          <QrCode size={15} /> តាមដានប្រភពដើម (បាច់ប្រមូលផល)
+        </button>
+      )}
       <div className="flex rounded-xl p-1 mb-3" style={{ background: C.bgAlt }}>
         <button onClick={() => setSub("locations")} className="flex-1 rounded-lg py-2 text-[11px] font-semibold" style={{ background: sub === "locations" ? C.card : "transparent", color: sub === "locations" ? C.green : C.inkSoft }}>ទីតាំង</button>
         <button onClick={() => setSub("customers")} className="flex-1 rounded-lg py-2 text-[11px] font-semibold" style={{ background: sub === "customers" ? C.card : "transparent", color: sub === "customers" ? C.green : C.inkSoft }}>អតិថិជន</button>

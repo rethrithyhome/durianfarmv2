@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, ScanLine, Plus, TreePine, MapPin, ChevronRight } from "lucide-react";
+import { Search, ScanLine, Plus, TreePine, MapPin, ChevronRight, FileText } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTrees, useCreateTree } from "@/hooks/useTrees";
 import { can } from "@/lib/permissions";
@@ -50,6 +50,17 @@ export function TreesPage({ role, scopedPlots }: { role: Role; scopedPlots: stri
 
   return (
     <div className="pt-1 pb-4">
+      {can(role, "viewReports") && (
+        <div className="grid grid-cols-2 gap-2.5 mb-3">
+          <button onClick={() => navigate("/tree-report")} className="flex items-center justify-center gap-2 rounded-2xl py-2.5 text-xs font-semibold" style={{ background: C.card, border: `1px solid ${C.line}`, color: C.green }}>
+            <FileText size={15} /> តារាង (ព្រីន/CSV)
+          </button>
+          <button onClick={() => navigate("/tree-map")} className="flex items-center justify-center gap-2 rounded-2xl py-2.5 text-xs font-semibold" style={{ background: C.card, border: `1px solid ${C.line}`, color: C.green }}>
+            <MapPin size={15} /> ផែនទីចម្ការ
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center gap-2 mb-3">
         <div className="flex-1 flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: C.card, border: `1px solid ${C.line}` }}>
           <Search size={15} color={C.inkSoft} />

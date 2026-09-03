@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, QrCode, Pencil, Trash2, Flower2, Lock, ScanLine, Droplet, Package } from "lucide-react";
+import { ArrowLeft, QrCode, Pencil, Trash2, Flower2, Lock, ScanLine, Droplet, Package, MapPin, Navigation } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTrees, useUpdateTree, useDeleteTree } from "@/hooks/useTrees";
 import { useCareLogs, useCreateCareLog, useDeleteCareLog, useCycles, useCreateCycle, useDeleteCycle, useEvents, useCreateEvent, useDeleteEvent } from "@/hooks/useYield";
@@ -9,6 +9,8 @@ import { useLocations, useCreateLocation } from "@/hooks/useSales";
 import { can, SCOPED_ROLES } from "@/lib/permissions";
 import { healthInfo, careInfo, YIELD_EVENT_TYPES } from "@/lib/constants";
 import { qrImageUrl, treeDeepLink } from "@/lib/qr";
+import { googleMapsDirectionsUrl } from "@/lib/geo";
+import { TreeMiniMap } from "@/components/ui/TreeMiniMap";
 import { fmtDate } from "@/lib/format";
 import { C, tint } from "@/lib/tokens";
 import { Badge, PrimaryButton } from "@/components/ui/primitives";
@@ -140,6 +142,14 @@ export function TreeDetailPage({ role, scopedPlots }: { role: Role; scopedPlots:
           <div><div className="text-[10.5px]" style={{ color: C.inkSoft }}>ថ្ងៃដាំ</div><div className="font-medium mt-0.5" style={{ color: C.ink }}>{fmtDate(tree.plantedDate)}</div></div>
         </div>
         {tree.notes && <div className="mt-3 text-xs rounded-xl p-2.5" style={{ background: C.bgAlt, color: C.ink }}>{tree.notes}</div>}
+        {tree.lat != null && tree.lng != null && (
+          <div className="mt-3">
+            <TreeMiniMap lat={tree.lat} lng={tree.lng} label={tree.code} />
+            <a href={googleMapsDirectionsUrl(tree.lat, tree.lng)} target="_blank" rel="noreferrer" className="w-full flex items-center justify-center gap-2 rounded-xl py-2.5 mt-2 text-xs font-semibold" style={{ background: C.bgAlt, color: C.green }}>
+              <Navigation size={14} /> ដឹកនាំផ្លូវទៅដើមនេះ
+            </a>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center justify-between mb-2">

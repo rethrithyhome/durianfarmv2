@@ -14,4 +14,5 @@ export const qk = {
   farm: ["farm"] as const,
   audit: ["audit"] as const,
   tasks: ["tasks"] as const,
+  batches: ["batches"] as const,
 };

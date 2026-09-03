@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Building2, Palette, Coins, Users as UsersIcon, Eye, FileText, Printer, History,
-  KeyRound, AlertTriangle, LogOut, ChevronRight, ArrowLeft, Map,
+  KeyRound, AlertTriangle, LogOut, ChevronRight, ArrowLeft, Map, Bell,
   type LucideIcon,
 } from "lucide-react";
 import * as api from "@/api";
@@ -16,11 +16,13 @@ import { UsersSection } from "@/components/settings/UsersSection";
 import { VisibilitySection } from "@/components/settings/VisibilitySection";
 import { DangerSection } from "@/components/settings/DangerSection";
 import { ThemePicker } from "@/components/settings/ThemePicker";
+import { DarkModeToggle } from "@/components/settings/DarkModeToggle";
 import { PasswordCard } from "@/components/settings/PasswordCard";
+import { NotificationSettings } from "@/components/settings/NotificationSettings";
 import type { FarmSettings, Role } from "@/types/domain";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 
-type SectionKey = "farm" | "theme" | "currency" | "users" | "visibility" | "plots" | "password" | "danger";
+type SectionKey = "farm" | "theme" | "currency" | "users" | "visibility" | "plots" | "password" | "notifications" | "danger";
 
 interface SectionDef {
   key: SectionKey;
@@ -46,6 +48,7 @@ export function SettingsPage({ role, farm }: { role: Role; farm: FarmSettings })
     { key: "visibility", label: "ការបង្ហាញតាមតួនាទី", desc: "កំណត់អ្វីដែលនីមួយៗឃើញ", icon: Eye, show: can(role, "manageVisibility") },
     { key: "plots", label: "តំបន់ដែលអ្នកគ្រប់គ្រង", desc: "ចម្រៀកដែលបានចាត់តាំង", icon: Map, show: SCOPED_ROLES.includes(role) },
     { key: "password", label: "ពាក្យសម្ងាត់របស់ខ្ញុំ", desc: "ប្តូរដោយខ្លួនឯង", icon: KeyRound, show: true },
+    { key: "notifications", label: "ការជូនដំណឹង", desc: "ជូនដំណឹងការងារថ្មីៗ", icon: Bell, show: true },
     { key: "danger", label: "តំបន់គ្រោះថ្នាក់", desc: "លុបទិន្នន័យទាំងអស់", icon: AlertTriangle, show: can(role, "resetData"), tone: C.red },
   ];
   const sections = allSections.filter((s) => s.show);
@@ -71,11 +74,12 @@ export function SettingsPage({ role, farm }: { role: Role; farm: FarmSettings })
         </div>
 
         {open === "farm" && <FarmInfoSection role={role} farm={farm} />}
-        {open === "theme" && <ThemePicker current={farm.theme} onChange={(key) => updateFarmM.mutate({ theme: key })} />}
+        {open === "theme" && <><DarkModeToggle /><ThemePicker current={farm.theme} onChange={(key) => updateFarmM.mutate({ theme: key })} /></>}
         {open === "currency" && <CurrencySection farm={farm} />}
         {open === "users" && <UsersSection role={role} />}
         {open === "visibility" && <VisibilitySection farm={farm} />}
         {open === "password" && <PasswordCard />}
+        {open === "notifications" && <NotificationSettings />}
         {open === "danger" && <DangerSection />}
         {open === "plots" && profile && (
           <div className="rounded-2xl p-4" style={{ background: C.card, border: `1px solid ${C.line}` }}>

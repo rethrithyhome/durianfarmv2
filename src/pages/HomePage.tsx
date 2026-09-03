@@ -12,6 +12,7 @@ import { fmtDate, thisYear } from "@/lib/format";
 import { fmtCurrency } from "@/lib/currency";
 import { C, tint } from "@/lib/tokens";
 import { StatCard, Badge } from "@/components/ui/primitives";
+import { YearlyComparisonChart } from "@/components/home/YearlyComparisonChart";
 import type { Role } from "@/types/domain";
 
 export function HomePage({ role }: { role: Role }) {
@@ -81,6 +82,10 @@ export function HomePage({ role }: { role: Role }) {
           <StatCard icon={Store} label="ទីតាំងលក់" value={locations.length} />
           <StatCard icon={TrendingUp} label={`ចំណូលឆ្នាំ ${thisYear}`} value={fmtCurrency(yearRevenue, "KHR")} accent={C.greenMid} />
         </div>
+      )}
+
+      {(showFarm || showSales) && (
+        <YearlyComparisonChart events={events} sales={sales} expenses={expenses} showYield={showFarm} showMoney={can(role, "farm") && showSales} thisYear={thisYear} />
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

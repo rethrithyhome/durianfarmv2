@@ -7,6 +7,7 @@ export * from "./yield";
 export * from "./expenses";
 export * from "./sales";
 export * from "./payroll";
+export * from "./batches";
 export * from "./tasks";
 export * from "./audit";
 export * from "./misc";

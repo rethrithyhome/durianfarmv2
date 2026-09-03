@@ -20,6 +20,11 @@ import { ReportPage } from "@/pages/ReportPage";
 import { AuditLogPage } from "@/pages/AuditLogPage";
 import { PayrollReportPage } from "@/pages/PayrollReportPage";
 import { ExpenseReportPage } from "@/pages/ExpenseReportPage";
+import { WorkerReportPage } from "@/pages/WorkerReportPage";
+import { TreeReportPage } from "@/pages/TreeReportPage";
+import { TreeMapPage } from "@/pages/TreeMapPage";
+import { BatchesPage } from "@/pages/BatchesPage";
+import { PublicTracePage } from "@/pages/PublicTracePage";
 import { DurianMark } from "@/components/ui/DurianMark";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { C, R, SHADOW } from "@/lib/tokens";
@@ -163,6 +168,10 @@ function AuthedShell() {
                 <Route path="/audit" element={<AuditLogPage />} />
                 <Route path="/payroll-report" element={<PayrollReportPage />} />
                 <Route path="/expense-report" element={<ExpenseReportPage />} />
+                <Route path="/worker-report" element={<WorkerReportPage />} />
+                <Route path="/tree-report" element={<TreeReportPage />} />
+                <Route path="/tree-map" element={<TreeMapPage />} />
+                <Route path="/batches" element={<BatchesPage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </div>
@@ -177,6 +186,20 @@ function AuthedShell() {
 
 export default function App() {
   const { loading, session, profile } = useAuth();
+
+  // Public traceability pages are meant to be opened by anyone who scans
+  // a batch QR code — cold, with no session — so this check happens
+  // before the login gate below, not after.
+  if (window.location.pathname.startsWith("/trace/")) {
+    return (
+      <BrowserRouter>
+        <Routes>
+          <Route path="/trace/:code" element={<PublicTracePage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    );
+  }
 
   if (loading) return <LoadingScreen />;
   if (!session) {

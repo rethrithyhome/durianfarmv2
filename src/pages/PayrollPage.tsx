@@ -12,6 +12,7 @@ import { fmtDate, todayISO } from "@/lib/format";
 import { errorMessage } from "@/lib/errors";
 import { C, tint } from "@/lib/tokens";
 import { GENDER_LABELS, genderColor } from "@/lib/constants";
+import { WorkerAvatar } from "@/components/workers/WorkerAvatar";
 import { StatCard, EmptyState, PrimaryButton, Badge, FilterChip, inputCls, inputStyle } from "@/components/ui/primitives";
 import { Search } from "lucide-react";
 import { SheetModal } from "@/components/ui/SheetModal";
@@ -212,6 +213,7 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
                 const dirty = draft !== undefined && draft !== (existing?.hours?.toString() ?? "");
                 return (
                   <div key={w.id} className="flex items-center gap-3 rounded-2xl p-3" style={{ background: C.card, border: `1px solid ${C.line}` }}>
+                    <WorkerAvatar photo={w.photo} />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold flex items-center gap-1.5" style={{ color: C.ink }}>
                         <span className="truncate">{w.name}</span>
@@ -308,6 +310,7 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
                         style={{ background: on ? C.green : C.bgAlt, border: `1px solid ${on ? C.green : C.line}` }}>
                         {on && <Check size={13} color="#fff" />}
                       </div>
+                      <WorkerAvatar photo={r.worker.photo} size={36} />
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-semibold flex items-center gap-1.5" style={{ color: C.ink }}>
                           <span className="truncate">{r.worker.name}</span>
@@ -362,6 +365,7 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
                 const frac = cycleWorkedFraction(cycle, w.startDate);
                 return (
                   <div key={w.id} className="flex items-center gap-3 rounded-2xl p-3" style={{ background: C.card, border: `1px solid ${C.line}` }}>
+                    <WorkerAvatar photo={w.photo} />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold flex items-center gap-1.5" style={{ color: C.ink }}>
                         <span className="truncate">{w.name}</span>
@@ -404,6 +408,7 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
                 const w = (workersQ.data ?? []).find((x) => x.id === p.workerId);
                 return (
                   <div key={p.id} className="flex items-center gap-3 rounded-2xl p-3" style={{ background: C.card, border: `1px solid ${C.line}` }}>
+                    <WorkerAvatar photo={w?.photo} size={36} />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold truncate flex items-center gap-1.5" style={{ color: C.ink }}>
                         {w?.name ?? "—"}
