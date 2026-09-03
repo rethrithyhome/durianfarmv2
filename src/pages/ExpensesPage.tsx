@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Pencil, Trash2, Receipt, Wallet, Check, FileText, Store } from "lucide-react";
+import { MultiSelectFilter } from "@/components/ui/MultiSelectFilter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useExpenses, useCreateExpense, useUpdateExpense, useDeleteExpense, useSettleExpenses } from "@/hooks/useExpenses";
 import { useTrees } from "@/hooks/useTrees";
@@ -37,7 +38,7 @@ export function ExpensesPage({ role, farm }: { role: Role; farm: FarmSettings })
   const settleM = useSettleExpenses();
 
   const [sub, setSub] = useState<SubTab>("list");
-  const [catFilter, setCatFilter] = useState<Expense["category"] | "all">("all");
+  const [catFilter, setCatFilter] = useState<Set<Expense["category"]>>(new Set());
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sort, setSort] = useState<SortKey>("recent");
   const [modal, setModal] = useState<{ mode: "add" | "edit"; expense?: Expense } | null>(null);
@@ -51,7 +52,7 @@ export function ExpensesPage({ role, farm }: { role: Role; farm: FarmSettings })
   const totalDebtKhr = unpaid.reduce((s, e) => s + e.amountKhr, 0);
 
   const sorted = useMemo(() => {
-    let list = catFilter === "all" ? expenses : expenses.filter((e) => e.category === catFilter);
+    let list = catFilter.size === 0 ? expenses : expenses.filter((e) => catFilter.has(e.category));
     if (statusFilter !== "all") list = list.filter((e) => (statusFilter === "paid" ? e.paid : !e.paid));
     list = [...list];
     if (sort === "recent") list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -104,9 +105,8 @@ export function ExpensesPage({ role, farm }: { role: Role; farm: FarmSettings })
             <FilterChip active={statusFilter === "paid"} onClick={() => setStatusFilter("paid")} label="បង់រួច" color={C.greenMid} />
             <FilterChip active={statusFilter === "unpaid"} onClick={() => setStatusFilter("unpaid")} label="ជំពាក់" color={C.goldDeep} />
           </div>
-          <div className="flex gap-1.5 overflow-x-auto mb-3 pb-0.5">
-            <FilterChip active={catFilter === "all"} onClick={() => setCatFilter("all")} label="ប្រភេទទាំងអស់" />
-            {EXPENSE_CATEGORIES.map((c) => <FilterChip key={c.key} active={catFilter === c.key} onClick={() => setCatFilter(c.key)} label={c.label} />)}
+          <div className="flex mb-3">
+            <MultiSelectFilter label="ប្រភេទ" options={EXPENSE_CATEGORIES} selected={catFilter} onChange={setCatFilter} />
           </div>
 
           {sorted.length === 0 ? (
@@ -121,8 +121,9 @@ export function ExpensesPage({ role, farm }: { role: Role; farm: FarmSettings })
                       {expenseInfo(e.category).label}
                       {!e.paid && <Badge label="ជំពាក់" color={C.goldDeep} />}
                     </div>
-                    <div className="text-[10.5px]" style={{ color: C.inkSoft }}>
+                    <div className="text-[10.5px] flex items-center gap-1" style={{ color: C.inkSoft }}>
                       {fmtDate(e.date)}{e.vendor ? ` · ${e.vendor}` : ""}{e.note ? ` · ${e.note}` : ""}
+                      {e.receiptUrl && <FileText size={11} />}
                     </div>
                   </div>
                   <div className="text-sm font-bold shrink-0" style={{ color: e.paid ? C.red : C.goldDeep }}>{fmtCurrency(e.amount, e.currency)}</div>
@@ -156,7 +157,7 @@ export function ExpensesPage({ role, farm }: { role: Role; farm: FarmSettings })
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold" style={{ color: C.ink }}>{expenseInfo(e.category).label}</div>
-                      <div className="text-[10.5px]" style={{ color: C.inkSoft }}>{fmtDate(e.date)}{e.vendor ? ` · ${e.vendor}` : ""}</div>
+                      <div className="text-[10.5px]" style={{ color: C.inkSoft }}>{fmtDate(e.date)}{e.vendor ? ` · ${e.vendor}` : ""}{e.note ? ` · ${e.note}` : ""}</div>
                     </div>
                     <div className="text-sm font-bold shrink-0" style={{ color: C.goldDeep }}>{fmtCurrency(e.amount, e.currency)}</div>
                   </button>
@@ -190,7 +191,7 @@ export function ExpensesPage({ role, farm }: { role: Role; farm: FarmSettings })
           <div className="rounded-xl overflow-hidden mb-4" style={{ border: `1px solid ${C.line}` }}>
             {unpaid.filter((e) => selected[e.id]).map((e) => (
               <div key={e.id} className="flex items-center justify-between px-3 py-2 text-xs" style={{ borderBottom: `1px solid ${C.line}` }}>
-                <span style={{ color: C.ink }}>{expenseInfo(e.category).label}{e.vendor ? ` · ${e.vendor}` : ""}</span>
+                <span style={{ color: C.ink }}>{expenseInfo(e.category).label}{e.vendor ? ` · ${e.vendor}` : ""}{e.note ? ` · ${e.note}` : ""}</span>
                 <b style={{ color: C.green }}>{fmtCurrency(e.amount, e.currency)}</b>
               </div>
             ))}

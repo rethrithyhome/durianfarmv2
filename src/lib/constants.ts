@@ -44,10 +44,13 @@ export const EXPENSE_CATEGORIES: ExpenseCategoryInfo[] = [
   { key: "transport", label: "ដឹកជញ្ជូន" },
   { key: "packaging", label: "វេចខ្ចប់" },
   { key: "salesCost", label: "ចំណាយផ្នែកលក់" },
+  { key: "food", label: "ម្ហូបអាហារ" },
+  { key: "fuel", label: "ប្រេង/ម៉ាស៊ូត" },
+  { key: "services", label: "សេវាកម្ម" },
   { key: "other", label: "ផ្សេងៗ" },
 ];
 export const expenseInfo = (k: ExpenseCategory): ExpenseCategoryInfo =>
-  EXPENSE_CATEGORIES.find((e) => e.key === k) ?? EXPENSE_CATEGORIES[8];
+  EXPENSE_CATEGORIES.find((e) => e.key === k) ?? EXPENSE_CATEGORIES[EXPENSE_CATEGORIES.length - 1];
 
 export const SALE_TYPES: { key: SaleType; label: string }[] = [
   { key: "retail", label: "លក់រាយ" },

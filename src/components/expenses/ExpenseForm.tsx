@@ -6,6 +6,7 @@ import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { EXPENSE_CATEGORIES } from "@/lib/constants";
 import { toKhr } from "@/lib/currency";
 import { C, tint } from "@/lib/tokens";
+import { DocumentPicker } from "@/components/ui/DocumentPicker";
 import { todayISO } from "@/lib/format";
 
 interface Props {
@@ -23,6 +24,8 @@ export function ExpenseForm({ initial, trees, exchangeRate, onClose, onSubmit }:
   const [date, setDate] = useState(initial?.date ?? todayISO());
   const [paid, setPaid] = useState(initial?.paid ?? true);
   const [vendor, setVendor] = useState(initial?.vendor ?? "");
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(initial?.receiptUrl ?? null);
+  const [receiptName, setReceiptName] = useState<string | null>(initial?.receiptName ?? null);
   const [treeId, setTreeId] = useState(initial?.treeId ?? "");
   const [note, setNote] = useState(initial?.note ?? "");
   const [busy, setBusy] = useState(false);
@@ -38,7 +41,8 @@ export function ExpenseForm({ initial, trees, exchangeRate, onClose, onSubmit }:
         amountKhr: toKhr(numeric, currency, exchangeRate),
         exchangeRate,
         date, paid, paidDate: paid ? (initial?.paidDate ?? date) : null,
-        vendor: vendor.trim() || null, treeId: treeId || null, note: note.trim(),
+        vendor: vendor.trim() || null, receiptUrl, receiptName,
+        treeId: treeId || null, note: note.trim(),
       });
       onClose();
     } finally { setBusy(false); }
@@ -81,6 +85,13 @@ export function ExpenseForm({ initial, trees, exchangeRate, onClose, onSubmit }:
           {trees.map((t) => <option key={t.id} value={t.id}>{t.code}</option>)}
         </select>
       </Field>
+      <DocumentPicker
+        url={receiptUrl}
+        name={receiptName}
+        onChange={(u, n) => { setReceiptUrl(u); setReceiptName(n); }}
+        label="វិក័យបត្រ/បង្កាន់ដៃ (ស្រេចចិត្ត)"
+        folder="expense-receipts"
+      />
       <Field label="កំណត់ចំណាំ"><textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} className={inputCls} style={inputStyle} /></Field>
       <PrimaryButton full onClick={submit} disabled={busy}>{busy ? "កំពុងរក្សាទុក..." : initial ? "រក្សាទុកការផ្លាស់ប្តូរ" : "កត់ត្រាចំណាយ"}</PrimaryButton>
     </SheetModal>

@@ -11,7 +11,7 @@ export type YieldEventType = "fallen" | "rotten" | "harvested" | "ripeFallen";
 
 export type ExpenseCategory =
   | "seedling" | "fertilizer" | "pesticide" | "labor" | "equipment"
-  | "transport" | "packaging" | "salesCost" | "other";
+  | "transport" | "packaging" | "salesCost" | "food" | "fuel" | "services" | "other";
 
 export type SaleType = "retail" | "wholesale";
 
@@ -128,6 +128,8 @@ export interface Expense {
   paid: boolean;             // false = bought on credit, not yet settled
   paidDate?: string | null;  // when it was actually settled (null if unpaid)
   vendor?: string | null;    // who it's owed to, e.g. a shop or supplier
+  receiptUrl?: string | null;  // scanned receipt/invoice (PDF or image)
+  receiptName?: string | null; // original filename, for display
   treeId?: string | null;
   note?: string | null;
 }
