@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useMemo } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, Printer, Download } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFarmSettings } from "@/hooks/useFarmSettings";
@@ -9,26 +9,26 @@ import { fmtCurrency } from "@/lib/currency";
 import { fmtDate, todayISO } from "@/lib/format";
 import { downloadCSV } from "@/lib/csv";
 import { C } from "@/lib/tokens";
-import { FilterChip } from "@/components/ui/primitives";
-import type { Status, WageType } from "@/types/domain";
+import type { Worker } from "@/types/domain";
 
 export function WorkerReportPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { profile } = useAuth();
   const enabled = !!profile?.farmId;
   const farmQ = useFarmSettings(enabled);
-  const workersQ = useWorkers(enabled);
+  // Prefer the worker list already filtered/sorted on the Workers page
+  // (passed via navigation state) — there's only one place to filter and
+  // sort workers now, not two competing copies. Falls back to all active
+  // workers if this report is opened some other way (e.g. from Settings).
+  const passedWorkers = (location.state as { workers?: Worker[] } | null)?.workers;
+  const workersQ = useWorkers(enabled && !passedWorkers);
 
   const farm = farmQ.data;
-  const [statusFilter, setStatusFilter] = useState<Status | "all">("active");
-  const [wageFilter, setWageFilter] = useState<WageType | "all">("all");
-
   const rows = useMemo(() => {
-    let list = workersQ.data ?? [];
-    if (statusFilter !== "all") list = list.filter((w) => w.status === statusFilter);
-    if (wageFilter !== "all") list = list.filter((w) => w.wageType === wageFilter);
-    return [...list].sort((a, b) => a.name.localeCompare(b.name, "km"));
-  }, [workersQ.data, statusFilter, wageFilter]);
+    if (passedWorkers) return passedWorkers;
+    return (workersQ.data ?? []).filter((w) => w.status === "active").sort((a, b) => a.name.localeCompare(b.name, "km"));
+  }, [passedWorkers, workersQ.data]);
 
   const exportCSV = () => {
     downloadCSV(`workers-${todayISO()}.csv`, [
@@ -49,23 +49,16 @@ export function WorkerReportPage() {
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto" style={{ background: C.bg }}>
       <div className="no-print sticky top-0 px-4 lg:px-8 py-3" style={{ background: C.card, borderBottom: `1px solid ${C.line}` }}>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between">
           <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-xs font-medium" style={{ color: C.greenMid }}><ArrowLeft size={15} /> ត្រឡប់ក្រោយ</button>
           <div className="flex items-center gap-2">
             <button onClick={exportCSV} className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold" style={{ background: C.bgAlt, color: C.green }}><Download size={13} /> CSV</button>
             <button onClick={() => window.print()} className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold" style={{ background: C.green, color: "#fff" }}><Printer size={13} /> បោះពុម្ព</button>
           </div>
         </div>
-        <div className="flex gap-1.5 overflow-x-auto mb-2 pb-0.5">
-          <FilterChip active={statusFilter === "active"} onClick={() => setStatusFilter("active")} label="កំពុងធ្វើការ" color={C.greenMid} />
-          <FilterChip active={statusFilter === "inactive"} onClick={() => setStatusFilter("inactive")} label="ឈប់ធ្វើការ" color={C.red} />
-          <FilterChip active={statusFilter === "all"} onClick={() => setStatusFilter("all")} label="ទាំងអស់" />
-        </div>
-        <div className="flex gap-1.5 overflow-x-auto pb-0.5">
-          <FilterChip active={wageFilter === "all"} onClick={() => setWageFilter("all")} label="ប្រភេទទាំងអស់" />
-          <FilterChip active={wageFilter === "monthly"} onClick={() => setWageFilter("monthly")} label="ប្រាក់ខែ" color={C.greenMid} />
-          <FilterChip active={wageFilter === "hourly"} onClick={() => setWageFilter("hourly")} label="ប្រាក់ថ្ងៃ" color={C.blue} />
-        </div>
+        {!passedWorkers && (
+          <div className="text-[10.5px] mt-2" style={{ color: C.inkSoft }}>កំពុងបង្ហាញ៖ កម្មករកំពុងធ្វើការទាំងអស់ តម្រៀបតាមឈ្មោះ — សម្រាប់ជ្រើសរើសបន្ថែម សូមចូលពីទំព័រ "កម្មករ"</div>
+        )}
       </div>
 
       <div className="print-area p-5 lg:p-8 max-w-4xl mx-auto">

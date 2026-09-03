@@ -19,10 +19,11 @@ import { ThemePicker } from "@/components/settings/ThemePicker";
 import { DarkModeToggle } from "@/components/settings/DarkModeToggle";
 import { PasswordCard } from "@/components/settings/PasswordCard";
 import { NotificationSettings } from "@/components/settings/NotificationSettings";
+import { ReportsHub } from "@/components/settings/ReportsHub";
 import type { FarmSettings, Role } from "@/types/domain";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 
-type SectionKey = "farm" | "theme" | "currency" | "users" | "visibility" | "plots" | "password" | "notifications" | "danger";
+type SectionKey = "farm" | "theme" | "currency" | "users" | "visibility" | "plots" | "password" | "notifications" | "reports" | "danger";
 
 interface SectionDef {
   key: SectionKey;
@@ -49,6 +50,7 @@ export function SettingsPage({ role, farm }: { role: Role; farm: FarmSettings })
     { key: "plots", label: "តំបន់ដែលអ្នកគ្រប់គ្រង", desc: "ចម្រៀកដែលបានចាត់តាំង", icon: Map, show: SCOPED_ROLES.includes(role) },
     { key: "password", label: "ពាក្យសម្ងាត់របស់ខ្ញុំ", desc: "ប្តូរដោយខ្លួនឯង", icon: KeyRound, show: true },
     { key: "notifications", label: "ការជូនដំណឹង", desc: "ជូនដំណឹងការងារថ្មីៗ", icon: Bell, show: true },
+    { key: "reports", label: "របាយការណ៍ទាំងអស់", desc: "ព្រីន, CSV, ប្រវត្តិកែប្រែ", icon: FileText, show: can(role, "viewReports") || can(role, "viewUsers") },
     { key: "danger", label: "តំបន់គ្រោះថ្នាក់", desc: "លុបទិន្នន័យទាំងអស់", icon: AlertTriangle, show: can(role, "resetData"), tone: C.red },
   ];
   const sections = allSections.filter((s) => s.show);
@@ -80,6 +82,7 @@ export function SettingsPage({ role, farm }: { role: Role; farm: FarmSettings })
         {open === "visibility" && <VisibilitySection farm={farm} />}
         {open === "password" && <PasswordCard />}
         {open === "notifications" && <NotificationSettings />}
+        {open === "reports" && <ReportsHub role={role} />}
         {open === "danger" && <DangerSection />}
         {open === "plots" && profile && (
           <div className="rounded-2xl p-4" style={{ background: C.card, border: `1px solid ${C.line}` }}>
@@ -101,20 +104,6 @@ export function SettingsPage({ role, farm }: { role: Role; farm: FarmSettings })
   // Menu view
   return (
     <div className="pt-1 pb-4 space-y-4">
-      {can(role, "viewReports") && (
-        <div className="grid grid-cols-2 gap-2.5">
-          <button onClick={() => navigate("/print-qr")} className="flex items-center gap-2 rounded-2xl px-3 py-3 text-xs font-semibold" style={{ background: C.card, border: `1px solid ${C.line}`, color: C.green }}>
-            <Printer size={15} /> បោះពុម្ព QR
-          </button>
-          <button onClick={() => navigate("/reports")} className="flex items-center gap-2 rounded-2xl px-3 py-3 text-xs font-semibold" style={{ background: C.card, border: `1px solid ${C.line}`, color: C.green }}>
-            <FileText size={15} /> របាយការណ៍
-          </button>
-          <button onClick={() => navigate("/audit")} className="flex items-center gap-2 rounded-2xl px-3 py-3 text-xs font-semibold col-span-2" style={{ background: C.card, border: `1px solid ${C.line}`, color: C.green }}>
-            <History size={15} /> ប្រវត្តិកែប្រែទិន្នន័យ
-          </button>
-        </div>
-      )}
-
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         {sections.map((s) => {
           const Icon = s.icon;

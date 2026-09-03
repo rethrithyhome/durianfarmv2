@@ -68,13 +68,8 @@ export function WorkersPage({ role, farm }: { role: Role; farm: FarmSettings }) 
   return (
     <div className="pt-1 pb-4">
       {can(role, "viewReports") && (
-        <button onClick={() => navigate("/worker-report")} className="w-full flex items-center justify-center gap-2 rounded-2xl py-2.5 mb-3 text-xs font-semibold" style={{ background: C.card, border: `1px solid ${C.line}`, color: C.green }}>
-          <FileText size={15} /> តារាងកម្មករ (ព្រីន/CSV)
-        </button>
-      )}
-      {can(role, "viewReports") && (
-        <button onClick={() => navigate("/worker-report")} className="w-full flex items-center justify-center gap-2 rounded-2xl py-2.5 mb-3 text-xs font-semibold" style={{ background: C.card, border: `1px solid ${C.line}`, color: C.green }}>
-          <FileText size={15} /> បញ្ជីកម្មករ (ព្រីន/CSV)
+        <button onClick={() => navigate("/worker-report", { state: { workers: filtered } })} className="w-full flex items-center justify-center gap-2 rounded-2xl py-2.5 mb-3 text-xs font-semibold" style={{ background: C.card, border: `1px solid ${C.line}`, color: C.green }}>
+          <FileText size={15} /> តារាងកម្មករ (ព្រីន/CSV) — {filtered.length} នាក់តាមការច្រោះបច្ចុប្បន្ន
         </button>
       )}
 

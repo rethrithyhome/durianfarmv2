@@ -42,6 +42,8 @@ export function ExpensesPage({ role, farm }: { role: Role; farm: FarmSettings })
   const [monthFilter, setMonthFilter] = useState(""); // "" = all time, else "YYYY-MM"
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sort, setSort] = useState<SortKey>("recent");
+  const [settleCatFilter, setSettleCatFilter] = useState<Set<Expense["category"]>>(new Set());
+  const [settleSort, setSettleSort] = useState<"oldest" | "newest" | "amount">("oldest");
   const [modal, setModal] = useState<{ mode: "add" | "edit"; expense?: Expense } | null>(null);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [confirmSettle, setConfirmSettle] = useState(false);
@@ -50,6 +52,14 @@ export function ExpensesPage({ role, farm }: { role: Role; farm: FarmSettings })
   const expenses = expensesQ.data ?? [];
   const trees = treesQ.data ?? [];
   const unpaid = useMemo(() => expenses.filter((e) => !e.paid), [expenses]);
+  const visibleUnpaid = useMemo(() => {
+    let list = settleCatFilter.size === 0 ? unpaid : unpaid.filter((e) => settleCatFilter.has(e.category));
+    list = [...list];
+    if (settleSort === "oldest") list.sort((a, b) => a.date.localeCompare(b.date));
+    else if (settleSort === "newest") list.sort((a, b) => b.date.localeCompare(a.date));
+    else list.sort((a, b) => b.amountKhr - a.amountKhr);
+    return list;
+  }, [unpaid, settleCatFilter, settleSort]);
   const totalDebtKhr = unpaid.reduce((s, e) => s + e.amountKhr, 0);
 
   const sorted = useMemo(() => {
@@ -153,14 +163,21 @@ export function ExpensesPage({ role, farm }: { role: Role; farm: FarmSettings })
           <EmptyState icon={Check} title="គ្មានចំណាយជំពាក់ទេ" hint="ចំណាយទាំងអស់ត្រូវបានទូទាត់រួច" />
         ) : (
           <>
+            <div className="flex items-center gap-2 mb-2">
+              <MultiSelectFilter label="ប្រភេទ" options={EXPENSE_CATEGORIES} selected={settleCatFilter} onChange={setSettleCatFilter} />
+              <SortMenu value={settleSort} options={[{ key: "oldest", label: "ចាស់បំផុតមុន" }, { key: "amount", label: "ចំនួនច្រើនបំផុត" }, { key: "newest", label: "ថ្មីបំផុត" }]} onChange={setSettleSort} />
+            </div>
+            <div className="rounded-xl p-2.5 text-[10.5px] mb-3" style={{ background: tint(C.blue, 8), color: C.brown }}>
+              ជ្រើសរើសតែធាតុដែលចង់បង់ឥឡូវ — ទុកអ្វីមិនទាន់ត្រៀម សម្រាប់បង់នៅពេលក្រោយវិញបាន
+            </div>
             <div className="flex items-center justify-between mb-2">
-              <button onClick={() => setSelected(unpaid.every((e) => selected[e.id]) ? {} : Object.fromEntries(unpaid.map((e) => [e.id, true])))} className="text-[11px] font-semibold" style={{ color: C.greenMid }}>
-                {unpaid.every((e) => selected[e.id]) ? "ដកការជ្រើសទាំងអស់" : "ជ្រើសទាំងអស់"}
+              <button onClick={() => setSelected(visibleUnpaid.every((e) => selected[e.id]) ? {} : Object.fromEntries(visibleUnpaid.map((e) => [e.id, true])))} className="text-[11px] font-semibold" style={{ color: C.greenMid }}>
+                {visibleUnpaid.every((e) => selected[e.id]) ? "ដកការជ្រើសទាំងអស់" : "ជ្រើសទាំងអស់ដែលបង្ហាញ"}
               </button>
-              <div className="text-[11px]" style={{ color: C.inkSoft }}>ជ្រើស {selectedIds.length}/{unpaid.length}</div>
+              <div className="text-[11px]" style={{ color: C.inkSoft }}>ជ្រើស {selectedIds.length}/{visibleUnpaid.length}</div>
             </div>
             <div className="space-y-2 mb-3">
-              {unpaid.map((e) => {
+              {visibleUnpaid.map((e) => {
                 const on = !!selected[e.id];
                 return (
                   <button key={e.id} onClick={() => setSelected((s) => ({ ...s, [e.id]: !on }))} className="w-full flex items-center gap-3 rounded-2xl p-3 text-left" style={{ background: C.card, border: `1.5px solid ${on ? C.green : C.line}` }}>

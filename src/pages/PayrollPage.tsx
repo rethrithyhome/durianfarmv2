@@ -14,6 +14,7 @@ import { C, tint } from "@/lib/tokens";
 import { GENDER_LABELS, genderColor } from "@/lib/constants";
 import { WorkerAvatar } from "@/components/workers/WorkerAvatar";
 import { StatCard, EmptyState, PrimaryButton, Badge, FilterChip, inputCls, inputStyle } from "@/components/ui/primitives";
+import { SortMenu } from "@/components/ui/SortMenu";
 import { Search } from "lucide-react";
 import { SheetModal } from "@/components/ui/SheetModal";
 import type { FarmSettings, Role, WageType, Worker, WorkLog } from "@/types/domain";
@@ -41,6 +42,7 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
   const [amountDraft, setAmountDraft] = useState<Record<string, string>>({});
   const [wageFilter, setWageFilter] = useState<WageType | "all">("all");
   const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<"name" | "amount">("name");
   const matchesSearch = (name: string) => !search || name.toLowerCase().includes(search.toLowerCase());
 
   // Flexible payout range for hourly workers — defaults to the last 7 days.
@@ -152,7 +154,8 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
     finally { setBusy(false); }
   };
 
-  const visibleHistory = payments.filter((p) => wageFilter === "all" || p.wageType === wageFilter);
+  const visibleHistory = payments.filter((p) => wageFilter === "all" || p.wageType === wageFilter)
+    .sort((a, b) => sort === "name" ? a.paidDate.localeCompare(b.paidDate) * -1 : b.amountKhr - a.amountKhr);
 
   return (
     <div className="pt-1 pb-4">
@@ -201,11 +204,14 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
             <div className="text-[11px] mb-1.5" style={{ color: C.inkSoft }}>កាលបរិច្ឆេទ</div>
             <input type="date" value={logDate} onChange={(e) => setLogDate(e.target.value)} className={inputCls} style={inputStyle} />
           </div>
+          <div className="flex justify-end mb-2"><SortMenu value={sort} options={[{ key: "name", label: "ឈ្មោះ ក-អ" }, { key: "amount", label: "ម៉ោងច្រើនបំផុត" }]} onChange={setSort} /></div>
           {hourlyWorkers.filter((w) => matchesSearch(w.name)).length === 0 ? (
             <EmptyState icon={search ? Search : Clock} title={search ? "រកមិនឃើញកម្មករ" : "គ្មានកម្មករប្រាក់ថ្ងៃ"} hint={search ? `គ្មានកម្មករឈ្មោះត្រូវនឹង "${search}"` : "កម្មករដែលកំណត់ជាប្រភេទ 'ប្រាក់ថ្ងៃ' នឹងបង្ហាញនៅទីនេះ"} />
           ) : (
             <div className="space-y-2">
-              {hourlyWorkers.filter((w) => matchesSearch(w.name)).map((w) => {
+              {hourlyWorkers.filter((w) => matchesSearch(w.name))
+                .sort((a, b) => sort === "name" ? a.name.localeCompare(b.name, "km") : hoursInCycle(b) - hoursInCycle(a))
+                .map((w) => {
                 const existing = logs.find((l) => l.workerId === w.id && l.date === logDate);
                 const locked = !!existing?.paymentId;
                 const draft = hoursDraft[w.id];
@@ -286,6 +292,7 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
             <EmptyState icon={search ? Search : Clock} title={search ? "រកមិនឃើញកម្មករ" : "គ្មានម៉ោងត្រូវបើកប្រាក់"} hint={search ? `គ្មានកម្មករឈ្មោះត្រូវនឹង "${search}"` : "គ្មានថ្ងៃធ្វើការដែលមិនទាន់បើកប្រាក់ក្នុងចន្លោះថ្ងៃនេះទេ"} />
           ) : (
             <>
+              <div className="flex justify-end mb-2"><SortMenu value={sort} options={[{ key: "name", label: "ឈ្មោះ ក-អ" }, { key: "amount", label: "ចំនួនទឹកប្រាក់ច្រើនបំផុត" }]} onChange={setSort} /></div>
               <div className="flex items-center justify-between mb-2">
                 <button
                   onClick={() => {
@@ -300,7 +307,9 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
               </div>
 
               <div className="space-y-2 mb-3">
-                {hourlyRows.filter((r) => matchesSearch(r.worker.name)).map((r) => {
+                {hourlyRows.filter((r) => matchesSearch(r.worker.name))
+                  .sort((a, b) => sort === "name" ? a.worker.name.localeCompare(b.worker.name, "km") : b.amountKhr - a.amountKhr)
+                  .map((r) => {
                   const on = !!selected[r.worker.id];
                   return (
                     <button key={r.worker.id} onClick={() => setSelected((s) => ({ ...s, [r.worker.id]: !on }))}
@@ -355,11 +364,14 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
             <button onClick={() => setCycle(shiftCycle(cycle, farm.payrollCycleStartDay, 1))} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: C.bgAlt }}><ChevronRight size={15} color={C.ink} /></button>
           </div>
 
+          <div className="flex justify-end mb-2"><SortMenu value={sort} options={[{ key: "name", label: "ឈ្មោះ ក-អ" }, { key: "amount", label: "ចំនួនទឹកប្រាក់ច្រើនបំផុត" }]} onChange={setSort} /></div>
           {monthlyWorkers.filter((w) => matchesSearch(w.name)).length === 0 ? (
             <EmptyState icon={search ? Search : Wallet} title={search ? "រកមិនឃើញកម្មករ" : "គ្មានកម្មករប្រាក់ខែ"} hint={search ? `គ្មានកម្មករឈ្មោះត្រូវនឹង "${search}"` : "កម្មករដែលកំណត់ជាប្រភេទ 'ប្រាក់ខែ' នឹងបង្ហាញនៅទីនេះ"} />
           ) : (
             <div className="space-y-2">
-              {monthlyWorkers.filter((w) => matchesSearch(w.name)).map((w) => {
+              {monthlyWorkers.filter((w) => matchesSearch(w.name))
+                .sort((a, b) => sort === "name" ? a.name.localeCompare(b.name, "km") : salaryAmountFor(b) - salaryAmountFor(a))
+                .map((w) => {
                 const amount = salaryAmountFor(w);
                 const paid = salaryPaid(w);
                 const frac = cycleWorkedFraction(cycle, w.startDate);
@@ -395,10 +407,13 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
       {/* ---------------- HISTORY ---------------- */}
       {sub === "history" && can(role, "payWages") && (
         <>
-          <div className="flex gap-1.5 overflow-x-auto mb-3 pb-0.5">
-            <FilterChip active={wageFilter === "all"} onClick={() => setWageFilter("all")} label={`ទាំងអស់ (${payments.length})`} />
-            <FilterChip active={wageFilter === "monthly"} onClick={() => setWageFilter("monthly")} label="ប្រាក់ខែ" color={C.greenMid} />
-            <FilterChip active={wageFilter === "hourly"} onClick={() => setWageFilter("hourly")} label="ប្រាក់ថ្ងៃ" color={C.blue} />
+          <div className="flex items-center gap-2 mb-3">
+            <div className="flex gap-1.5 overflow-x-auto flex-1 pb-0.5">
+              <FilterChip active={wageFilter === "all"} onClick={() => setWageFilter("all")} label={`ទាំងអស់ (${payments.length})`} />
+              <FilterChip active={wageFilter === "monthly"} onClick={() => setWageFilter("monthly")} label="ប្រាក់ខែ" color={C.greenMid} />
+              <FilterChip active={wageFilter === "hourly"} onClick={() => setWageFilter("hourly")} label="ប្រាក់ថ្ងៃ" color={C.blue} />
+            </div>
+            <SortMenu value={sort} options={[{ key: "name", label: "ថ្ងៃថ្មីបំផុត" }, { key: "amount", label: "ចំនួនច្រើនបំផុត" }]} onChange={setSort} />
           </div>
           {visibleHistory.length === 0 ? (
             <EmptyState icon={History} title="មិនទាន់មានប្រវត្តិបើកប្រាក់" hint="ការបើកប្រាក់ទាំងអស់នឹងបង្ហាញនៅទីនេះ" />

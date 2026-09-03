@@ -13,10 +13,11 @@ export function Badge({ label, color, size = "sm" }: { label?: string; color: st
   );
 }
 
-export function StatCard({ label, value, sub, accent, icon: Icon }: { label: string; value: string | number; sub?: string; accent?: string; icon?: LucideIcon }) {
+export function StatCard({ label, value, sub, accent, icon: Icon, onClick }: { label: string; value: string | number; sub?: string; accent?: string; icon?: LucideIcon; onClick?: () => void }) {
   const tone = accent || C.green;
+  const Tag = onClick ? "button" : "div";
   return (
-    <div className="relative p-3.5 overflow-hidden" style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: R.lg, boxShadow: SHADOW.card }}>
+    <Tag onClick={onClick} className="relative p-3.5 overflow-hidden text-left w-full" style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: R.lg, boxShadow: SHADOW.card }}>
       <div className="absolute left-0 top-0 bottom-0 w-1" style={{ background: tone }} />
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
@@ -30,7 +31,7 @@ export function StatCard({ label, value, sub, accent, icon: Icon }: { label: str
           </div>
         )}
       </div>
-    </div>
+    </Tag>
   );
 }
 
