@@ -16,7 +16,7 @@ import type { Gender } from "@/types/domain";
 import { WorkerAvatar } from "@/components/workers/WorkerAvatar";
 import { StatCard, EmptyState, PrimaryButton, Badge, FilterChip, inputCls, inputStyle } from "@/components/ui/primitives";
 import { SkeletonList } from "@/components/ui/Skeleton";
-import { SortMenu } from "@/components/ui/SortMenu";
+import { SortMenu, type SortValue } from "@/components/ui/SortMenu";
 import { Search } from "lucide-react";
 import { SheetModal } from "@/components/ui/SheetModal";
 import type { FarmSettings, Role, WageType, Worker, WorkLog } from "@/types/domain";
@@ -46,8 +46,18 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
   const [amountDraft, setAmountDraft] = useState<Record<string, string>>({});
   const [wageFilter, setWageFilter] = useState<WageType | "all">("all");
   const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<"name" | "amount" | "gender">("name");
+  const [sort, setSort] = useState<SortValue<"name" | "amount" | "date" | "gender">>({ key: "name", dir: "asc" });
+  const dirMul = sort.dir === "asc" ? 1 : -1;
   const genderRank = (g?: Gender | null) => (g === "male" ? 0 : g === "female" ? 1 : g === "other" ? 2 : 3);
+  /** A worker whose day is already resolved (amount entered, marked
+   * absent, or hours logged) sinks to the bottom of the hours-entry
+   * list, so whoever's left to enter stays at the top — no need to
+   * scroll past people already done. */
+  const isResolvedToday = (w: Worker) => {
+    const log = logs.find((l) => l.workerId === w.id && l.date === logDate);
+    if (!log) return false;
+    return w.dailyRateMode === "daily" ? log.dayAmount != null : log.hours > 0;
+  };
   const matchesSearch = (name: string) => !search || name.toLowerCase().includes(search.toLowerCase());
 
   // Flexible payout range for hourly workers — defaults to the last 7 days.
@@ -163,12 +173,13 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
 
   const visibleHistory = payments.filter((p) => wageFilter === "all" || p.wageType === wageFilter)
     .sort((a, b) => {
-      if (sort === "gender") {
+      if (sort.key === "gender") {
         const ga = workers.find((w) => w.id === a.workerId)?.gender;
         const gb = workers.find((w) => w.id === b.workerId)?.gender;
-        return genderRank(ga) - genderRank(gb);
+        return (genderRank(ga) - genderRank(gb)) * dirMul;
       }
-      return sort === "name" ? a.paidDate.localeCompare(b.paidDate) * -1 : b.amountKhr - a.amountKhr;
+      if (sort.key === "amount") return (a.amountKhr - b.amountKhr) * dirMul;
+      return a.paidDate.localeCompare(b.paidDate) * dirMul;
     });
 
   return (
@@ -218,7 +229,7 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
             <div className="text-[11px] mb-1.5" style={{ color: C.inkSoft }}>កាលបរិច្ឆេទ</div>
             <input type="date" value={logDate} onChange={(e) => setLogDate(e.target.value)} className={inputCls} style={inputStyle} />
           </div>
-          <div className="flex justify-end mb-2"><SortMenu value={sort} options={[{ key: "name", label: "ឈ្មោះ ក-អ" }, { key: "amount", label: "ម៉ោងច្រើនបំផុត" }, { key: "gender", label: "ភេទ" }]} onChange={setSort} /></div>
+          <div className="flex justify-end mb-2"><SortMenu value={sort} options={[{ key: "name", label: "ឈ្មោះ", defaultDir: "asc" }, { key: "amount", label: "ម៉ោងខួបនេះ", defaultDir: "desc" }, { key: "gender", label: "ភេទ", defaultDir: "asc" }]} onChange={setSort} /></div>
           {workersQ.isPending ? (
             <SkeletonList count={4} />
           ) : hourlyWorkers.filter((w) => matchesSearch(w.name)).length === 0 ? (
@@ -226,7 +237,14 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
           ) : (
             <div className="space-y-2">
               {hourlyWorkers.filter((w) => matchesSearch(w.name))
-                .sort((a, b) => sort === "name" ? a.name.localeCompare(b.name, "km") : sort === "gender" ? genderRank(a.gender) - genderRank(b.gender) : hoursInCycle(b) - hoursInCycle(a))
+                .sort((a, b) => {
+                  const ra = isResolvedToday(a) ? 1 : 0;
+                  const rb = isResolvedToday(b) ? 1 : 0;
+                  if (ra !== rb) return ra - rb;
+                  if (sort.key === "gender") return (genderRank(a.gender) - genderRank(b.gender)) * dirMul;
+                  if (sort.key === "amount") return (hoursInCycle(a) - hoursInCycle(b)) * dirMul;
+                  return a.name.localeCompare(b.name, "km") * dirMul;
+                })
                 .map((w) => {
                 const existing = logs.find((l) => l.workerId === w.id && l.date === logDate);
                 const locked = !!existing?.paymentId;
@@ -252,17 +270,26 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
                         const draftA = amountDraft[w.id];
                         const valueA = draftA !== undefined ? draftA : (existing?.dayAmount?.toString() ?? "");
                         const dirtyA = draftA !== undefined && draftA !== (existing?.dayAmount?.toString() ?? "");
+                        const isAbsent = existing?.dayAmount === 0;
+                        const isReceived = (existing?.dayAmount ?? 0) > 0;
+                        const boxBg = isAbsent ? tint(C.red, 20) : isReceived ? tint(C.greenMid, 20) : inputStyle.background;
                         return (
                           <>
                             <input type="number" min="0" step="500" value={valueA} disabled={locked}
                               onChange={(e) => setAmountDraft((d) => ({ ...d, [w.id]: e.target.value }))}
                               className="w-28 rounded-xl px-2.5 py-2 text-sm text-center outline-none disabled:opacity-50"
-                              style={inputStyle} placeholder="ចំនួនប្រាក់" />
-                            <button onClick={() => saveAmount(w.id)} disabled={!dirtyA || locked}
-                              className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 disabled:opacity-40"
-                              style={{ background: dirtyA && !locked ? C.green : C.bgAlt }}>
-                              <Check size={15} color={dirtyA && !locked ? "#fff" : C.inkSoft} />
-                            </button>
+                              style={{ ...inputStyle, background: boxBg }} placeholder="ចំនួនប្រាក់" />
+                            {(isAbsent || isReceived) && !dirtyA ? (
+                              <div className="px-2.5 h-9 rounded-xl flex items-center justify-center shrink-0 text-[11px] font-semibold" style={{ background: isAbsent ? tint(C.red, 15) : tint(C.greenMid, 15), color: isAbsent ? C.red : C.greenMid }}>
+                                {isAbsent ? "អត់ធ្វើការ" : "ទទួលបាន"}
+                              </div>
+                            ) : (
+                              <button onClick={() => saveAmount(w.id)} disabled={!dirtyA || locked}
+                                className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 disabled:opacity-40"
+                                style={{ background: dirtyA && !locked ? C.green : C.bgAlt }}>
+                                <Check size={15} color={dirtyA && !locked ? "#fff" : C.inkSoft} />
+                              </button>
+                            )}
                           </>
                         );
                       })()
@@ -326,7 +353,7 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
 
               <div className="space-y-2 mb-3">
                 {hourlyRows.filter((r) => matchesSearch(r.worker.name))
-                  .sort((a, b) => sort === "name" ? a.worker.name.localeCompare(b.worker.name, "km") : sort === "gender" ? genderRank(a.worker.gender) - genderRank(b.worker.gender) : b.amountKhr - a.amountKhr)
+                  .sort((a, b) => sort.key === "gender" ? (genderRank(a.worker.gender) - genderRank(b.worker.gender)) * dirMul : sort.key === "amount" ? (a.amountKhr - b.amountKhr) * dirMul : a.worker.name.localeCompare(b.worker.name, "km") * dirMul)
                   .map((r) => {
                   const on = !!selected[r.worker.id];
                   return (
@@ -390,7 +417,7 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
           ) : (
             <div className="space-y-2">
               {monthlyWorkers.filter((w) => matchesSearch(w.name))
-                .sort((a, b) => sort === "name" ? a.name.localeCompare(b.name, "km") : sort === "gender" ? genderRank(a.gender) - genderRank(b.gender) : salaryAmountFor(b) - salaryAmountFor(a))
+                .sort((a, b) => sort.key === "gender" ? (genderRank(a.gender) - genderRank(b.gender)) * dirMul : sort.key === "amount" ? (salaryAmountFor(a) - salaryAmountFor(b)) * dirMul : a.name.localeCompare(b.name, "km") * dirMul)
                 .map((w) => {
                 const amount = salaryAmountFor(w);
                 const paid = salaryPaid(w);
@@ -433,7 +460,7 @@ export function PayrollPage({ role, farm }: { role: Role; farm: FarmSettings }) 
               <FilterChip active={wageFilter === "monthly"} onClick={() => setWageFilter("monthly")} label="ប្រាក់ខែ" color={C.greenMid} />
               <FilterChip active={wageFilter === "hourly"} onClick={() => setWageFilter("hourly")} label="ប្រាក់ថ្ងៃ" color={C.blue} />
             </div>
-            <SortMenu value={sort} options={[{ key: "name", label: "ថ្ងៃថ្មីបំផុត" }, { key: "amount", label: "ចំនួនច្រើនបំផុត" }, { key: "gender", label: "ភេទ" }]} onChange={setSort} />
+            <SortMenu value={sort} options={[{ key: "date", label: "ថ្ងៃបង់", defaultDir: "desc" }, { key: "amount", label: "ចំនួនទឹកប្រាក់", defaultDir: "desc" }, { key: "gender", label: "ភេទ", defaultDir: "asc" }]} onChange={setSort} />
           </div>
           {paymentsQ.isPending ? (
             <SkeletonList count={4} avatar={false} />

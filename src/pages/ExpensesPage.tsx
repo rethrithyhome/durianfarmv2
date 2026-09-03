@@ -13,7 +13,7 @@ import { errorMessage } from "@/lib/errors";
 import { C, tint } from "@/lib/tokens";
 import { EmptyState, FilterChip, StatCard, PrimaryButton, Badge } from "@/components/ui/primitives";
 import { SkeletonList } from "@/components/ui/Skeleton";
-import { SortMenu } from "@/components/ui/SortMenu";
+import { SortMenu, type SortValue } from "@/components/ui/SortMenu";
 import { SheetModal } from "@/components/ui/SheetModal";
 import { ExpenseForm } from "@/components/expenses/ExpenseForm";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
@@ -21,8 +21,15 @@ import { useToast } from "@/components/ui/Toast";
 import type { Expense, FarmSettings, Role } from "@/types/domain";
 
 type SortKey = "recent" | "amount" | "category";
-const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: "recent", label: "កាលបរិច្ឆេទ" }, { key: "amount", label: "ចំនួនទឹកប្រាក់" }, { key: "category", label: "ប្រភេទ" },
+const SORT_OPTIONS: { key: SortKey; label: string; defaultDir?: "asc" | "desc" }[] = [
+  { key: "recent", label: "កាលបរិច្ឆេទ", defaultDir: "desc" },
+  { key: "amount", label: "ចំនួនទឹកប្រាក់", defaultDir: "desc" },
+  { key: "category", label: "ប្រភេទ", defaultDir: "asc" },
+];
+type SettleSortKey = "date" | "amount";
+const SETTLE_SORT_OPTIONS: { key: SettleSortKey; label: string; defaultDir?: "asc" | "desc" }[] = [
+  { key: "date", label: "កាលបរិច្ឆេទ", defaultDir: "asc" },   // oldest-first by default — natural payment priority
+  { key: "amount", label: "ចំនួនទឹកប្រាក់", defaultDir: "desc" },
 ];
 type StatusFilter = "all" | "paid" | "unpaid";
 type SubTab = "list" | "settle";
@@ -44,9 +51,9 @@ export function ExpensesPage({ role, farm }: { role: Role; farm: FarmSettings })
   const [catFilter, setCatFilter] = useState<Set<Expense["category"]>>(new Set());
   const [monthFilter, setMonthFilter] = useState(""); // "" = all time, else "YYYY-MM"
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [sort, setSort] = useState<SortKey>("recent");
+  const [sort, setSort] = useState<SortValue<SortKey>>({ key: "recent", dir: "desc" });
   const [settleCatFilter, setSettleCatFilter] = useState<Set<Expense["category"]>>(new Set());
-  const [settleSort, setSettleSort] = useState<"oldest" | "newest" | "amount">("oldest");
+  const [settleSort, setSettleSort] = useState<SortValue<SettleSortKey>>({ key: "date", dir: "asc" });
   const [modal, setModal] = useState<{ mode: "add" | "edit"; expense?: Expense } | null>(null);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [confirmSettle, setConfirmSettle] = useState(false);
@@ -58,9 +65,9 @@ export function ExpensesPage({ role, farm }: { role: Role; farm: FarmSettings })
   const visibleUnpaid = useMemo(() => {
     let list = settleCatFilter.size === 0 ? unpaid : unpaid.filter((e) => settleCatFilter.has(e.category));
     list = [...list];
-    if (settleSort === "oldest") list.sort((a, b) => a.date.localeCompare(b.date));
-    else if (settleSort === "newest") list.sort((a, b) => b.date.localeCompare(a.date));
-    else list.sort((a, b) => b.amountKhr - a.amountKhr);
+    const dirMul = settleSort.dir === "asc" ? 1 : -1;
+    if (settleSort.key === "date") list.sort((a, b) => a.date.localeCompare(b.date) * dirMul);
+    else list.sort((a, b) => (a.amountKhr - b.amountKhr) * dirMul);
     return list;
   }, [unpaid, settleCatFilter, settleSort]);
   const totalDebtKhr = unpaid.reduce((s, e) => s + e.amountKhr, 0);
@@ -70,9 +77,10 @@ export function ExpensesPage({ role, farm }: { role: Role; farm: FarmSettings })
     if (statusFilter !== "all") list = list.filter((e) => (statusFilter === "paid" ? e.paid : !e.paid));
     if (monthFilter) list = list.filter((e) => e.date.startsWith(monthFilter));
     list = [...list];
-    if (sort === "recent") list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    else if (sort === "amount") list.sort((a, b) => b.amountKhr - a.amountKhr);
-    else if (sort === "category") list.sort((a, b) => a.category.localeCompare(b.category));
+    const dirMul = sort.dir === "asc" ? 1 : -1;
+    if (sort.key === "recent") list.sort((a, b) => (new Date(a.date).getTime() - new Date(b.date).getTime()) * dirMul);
+    else if (sort.key === "amount") list.sort((a, b) => (a.amountKhr - b.amountKhr) * dirMul);
+    else if (sort.key === "category") list.sort((a, b) => a.category.localeCompare(b.category) * dirMul);
     return list;
   }, [expenses, catFilter, statusFilter, monthFilter, sort]);
 
@@ -173,7 +181,7 @@ export function ExpensesPage({ role, farm }: { role: Role; farm: FarmSettings })
           <>
             <div className="flex items-center gap-2 mb-2">
               <MultiSelectFilter label="ប្រភេទ" options={EXPENSE_CATEGORIES} selected={settleCatFilter} onChange={setSettleCatFilter} />
-              <SortMenu value={settleSort} options={[{ key: "oldest", label: "ចាស់បំផុតមុន" }, { key: "amount", label: "ចំនួនច្រើនបំផុត" }, { key: "newest", label: "ថ្មីបំផុត" }]} onChange={setSettleSort} />
+              <SortMenu value={settleSort} options={SETTLE_SORT_OPTIONS} onChange={setSettleSort} />
             </div>
             <div className="rounded-xl p-2.5 text-[10.5px] mb-3" style={{ background: tint(C.blue, 8), color: C.brown }}>
               ជ្រើសរើសតែធាតុដែលចង់បង់ឥឡូវ — ទុកអ្វីមិនទាន់ត្រៀម សម្រាប់បង់នៅពេលក្រោយវិញបាន

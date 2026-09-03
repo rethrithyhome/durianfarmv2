@@ -9,14 +9,17 @@ import { C } from "@/lib/tokens";
 import { Badge, EmptyState, FilterChip } from "@/components/ui/primitives";
 import { SkeletonList } from "@/components/ui/Skeleton";
 import { DurianMark } from "@/components/ui/DurianMark";
-import { SortMenu } from "@/components/ui/SortMenu";
+import { SortMenu, type SortValue } from "@/components/ui/SortMenu";
 import { TreeForm } from "@/components/trees/TreeForm";
 import { ScanQRModal } from "@/components/trees/ScanQRModal";
 import type { Role, Tree } from "@/types/domain";
 
 type SortKey = "recent" | "code" | "plot" | "health";
-const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: "recent", label: "ថ្មីៗ" }, { key: "code", label: "លេខកូដ" }, { key: "plot", label: "ចម្រៀក" }, { key: "health", label: "សុខភាព" },
+const SORT_OPTIONS: { key: SortKey; label: string; defaultDir?: "asc" | "desc" }[] = [
+  { key: "recent", label: "ថ្មីៗ", defaultDir: "desc" },
+  { key: "code", label: "លេខកូដ", defaultDir: "asc" },
+  { key: "plot", label: "ចម្រៀក", defaultDir: "asc" },
+  { key: "health", label: "សុខភាព", defaultDir: "asc" },
 ];
 const HEALTH_ORDER: Record<Tree["health"], number> = { sick: 0, needs_care: 1, normal: 2, excellent: 3 };
 
@@ -29,7 +32,7 @@ export function TreesPage({ role, scopedPlots }: { role: Role; scopedPlots: stri
 
   const [q, setQ] = useState("");
   const [healthFilter, setHealthFilter] = useState<Tree["health"] | "all">("all");
-  const [sort, setSort] = useState<SortKey>("recent");
+  const [sort, setSort] = useState<SortValue<SortKey>>({ key: "recent", dir: "desc" });
   const [addOpen, setAddOpen] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
 
@@ -41,9 +44,11 @@ export function TreesPage({ role, scopedPlots }: { role: Role; scopedPlots: stri
       return matchQ && matchH;
     });
     list = [...list];
-    if (sort === "code") list.sort((a, b) => a.code.localeCompare(b.code));
-    else if (sort === "plot") list.sort((a, b) => (a.plot ?? "").localeCompare(b.plot ?? ""));
-    else if (sort === "health") list.sort((a, b) => HEALTH_ORDER[a.health] - HEALTH_ORDER[b.health]);
+    const dirMul = sort.dir === "asc" ? 1 : -1;
+    if (sort.key === "code") list.sort((a, b) => a.code.localeCompare(b.code) * dirMul);
+    else if (sort.key === "plot") list.sort((a, b) => (a.plot ?? "").localeCompare(b.plot ?? "") * dirMul);
+    else if (sort.key === "health") list.sort((a, b) => (HEALTH_ORDER[a.health] - HEALTH_ORDER[b.health]) * dirMul);
+    else if (sort.dir === "asc") list.reverse(); // "recent" — API already returns newest-first; reverse for oldest-first
     return list;
   }, [trees, q, healthFilter, sort]);
 

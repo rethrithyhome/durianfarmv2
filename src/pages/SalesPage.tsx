@@ -11,7 +11,7 @@ import { fmtCurrency } from "@/lib/currency";
 import { C } from "@/lib/tokens";
 import { Badge, EmptyState } from "@/components/ui/primitives";
 import { SkeletonList } from "@/components/ui/Skeleton";
-import { SortMenu } from "@/components/ui/SortMenu";
+import { SortMenu, type SortValue } from "@/components/ui/SortMenu";
 import { LocationForm } from "@/components/sales/LocationForm";
 import { CustomerForm } from "@/components/sales/CustomerForm";
 import { SaleForm } from "@/components/sales/SaleForm";
@@ -19,7 +19,7 @@ import type { Customer, FarmSettings, Role, Sale, SaleLocation } from "@/types/d
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 
 type SortKey = "recent" | "amount";
-const SORT_OPTIONS: { key: SortKey; label: string }[] = [{ key: "recent", label: "កាលបរិច្ឆេទ" }, { key: "amount", label: "ចំនួនទឹកប្រាក់" }];
+const SORT_OPTIONS: { key: SortKey; label: string; defaultDir?: "asc" | "desc" }[] = [{ key: "recent", label: "កាលបរិច្ឆេទ", defaultDir: "desc" }, { key: "amount", label: "ចំនួនទឹកប្រាក់", defaultDir: "desc" }];
 
 export function SalesPage({ role, farm }: { role: Role; farm: FarmSettings }) {
   const navigate = useNavigate();
@@ -40,7 +40,7 @@ export function SalesPage({ role, farm }: { role: Role; farm: FarmSettings }) {
   const [locModal, setLocModal] = useState<{ mode: "add" | "edit"; loc?: SaleLocation } | null>(null);
   const [custModal, setCustModal] = useState<{ mode: "add" | "edit"; cust?: Customer } | null>(null);
   const [saleModal, setSaleModal] = useState<{ mode: "add" | "edit"; sale?: Sale } | null>(null);
-  const [sort, setSort] = useState<SortKey>("recent");
+  const [sort, setSort] = useState<SortValue<SortKey>>({ key: "recent", dir: "desc" });
 
   const locations = locationsQ.data ?? [];
   const customers = customersQ.data ?? [];
@@ -50,8 +50,9 @@ export function SalesPage({ role, farm }: { role: Role; farm: FarmSettings }) {
 
   const sortedSales = useMemo(() => {
     const list = [...sales];
-    if (sort === "recent") list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    else list.sort((a, b) => b.totalRevenueKhr - a.totalRevenueKhr);
+    const dirMul = sort.dir === "asc" ? 1 : -1;
+    if (sort.key === "recent") list.sort((a, b) => (new Date(a.date).getTime() - new Date(b.date).getTime()) * dirMul);
+    else list.sort((a, b) => (a.totalRevenueKhr - b.totalRevenueKhr) * dirMul);
     return list;
   }, [sales, sort]);
 

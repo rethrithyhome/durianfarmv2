@@ -7,7 +7,7 @@ import { can } from "@/lib/permissions";
 import { C } from "@/lib/tokens";
 import { Badge, EmptyState, FilterChip, StatCard } from "@/components/ui/primitives";
 import { SkeletonList } from "@/components/ui/Skeleton";
-import { SortMenu } from "@/components/ui/SortMenu";
+import { SortMenu, type SortValue } from "@/components/ui/SortMenu";
 import { fmtDate } from "@/lib/format";
 import { GENDER_LABELS, genderColor } from "@/lib/constants";
 import { toKhr } from "@/lib/currency";
@@ -15,17 +15,17 @@ import { WorkerForm } from "@/components/workers/WorkerForm";
 import type { FarmSettings, Role, WageType, Worker } from "@/types/domain";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 
-type SortKey = "name" | "plot" | "position" | "wageHigh" | "newest" | "longest" | "gender" | "status";
-const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: "name", label: "ឈ្មោះ ក-អ" },
-  { key: "plot", label: "ចម្រៀក" },
-  { key: "position", label: "តួនាទី" },
-  { key: "wageHigh", label: "ប្រាក់ឈ្នួល ច្រើន→តិច" },
-  { key: "newest", label: "ចូលថ្មីបំផុត" },
-  { key: "longest", label: "ចាស់ជាងគេ" },
-  { key: "gender", label: "ភេទ" },
-  { key: "status", label: "កំពុងធ្វើការមុន" },
+type SortKey = "name" | "plot" | "position" | "wage" | "startDate" | "gender" | "status";
+const SORT_OPTIONS: { key: SortKey; label: string; defaultDir?: "asc" | "desc" }[] = [
+  { key: "name", label: "ឈ្មោះ", defaultDir: "asc" },
+  { key: "plot", label: "ចម្រៀក", defaultDir: "asc" },
+  { key: "position", label: "តួនាទី", defaultDir: "asc" },
+  { key: "wage", label: "ប្រាក់ឈ្នួល", defaultDir: "desc" },
+  { key: "startDate", label: "ថ្ងៃចូលធ្វើការ", defaultDir: "desc" },
+  { key: "gender", label: "ភេទ", defaultDir: "asc" },
+  { key: "status", label: "ស្ថានភាព", defaultDir: "asc" },
 ];
+const genderRank = (g?: string | null) => (g === "male" ? 0 : g === "female" ? 1 : g === "other" ? 2 : 3);
 
 export function WorkersPage({ role, farm }: { role: Role; farm: FarmSettings }) {
   const confirm = useConfirm();
@@ -39,7 +39,7 @@ export function WorkersPage({ role, farm }: { role: Role; farm: FarmSettings }) 
 
   const [q, setQ] = useState("");
   const [wageFilter, setWageFilter] = useState<WageType | "all">("all");
-  const [sort, setSort] = useState<SortKey>("name");
+  const [sort, setSort] = useState<SortValue<SortKey>>({ key: "name", dir: "asc" });
   const [modal, setModal] = useState<{ mode: "add" | "edit"; worker?: Worker } | null>(null);
 
   const workers = workersQ.data ?? [];
@@ -53,15 +53,22 @@ export function WorkersPage({ role, farm }: { role: Role; farm: FarmSettings }) 
       return matchQ && matchWage;
     });
     const sorted = [...list];
-    switch (sort) {
-      case "name": sorted.sort((a, b) => a.name.localeCompare(b.name, "km")); break;
-      case "plot": sorted.sort((a, b) => (a.plot ?? "").localeCompare(b.plot ?? "", "km")); break;
-      case "position": sorted.sort((a, b) => (a.position ?? "").localeCompare(b.position ?? "", "km")); break;
-      case "wageHigh": sorted.sort((a, b) => toKhr(b.wageRate, b.wageCurrency, farm.exchangeRate) - toKhr(a.wageRate, a.wageCurrency, farm.exchangeRate)); break;
-      case "newest": sorted.sort((a, b) => (b.startDate ?? "").localeCompare(a.startDate ?? "")); break;
-      case "longest": sorted.sort((a, b) => (a.startDate ?? "9999").localeCompare(b.startDate ?? "9999")); break;
-      case "gender": sorted.sort((a, b) => (a.gender ?? "zz").localeCompare(b.gender ?? "zz")); break;
-      case "status": sorted.sort((a, b) => Number(a.status === "inactive") - Number(b.status === "inactive")); break;
+    const dirMul = sort.dir === "asc" ? 1 : -1;
+    switch (sort.key) {
+      case "name": sorted.sort((a, b) => a.name.localeCompare(b.name, "km") * dirMul); break;
+      case "plot": sorted.sort((a, b) => (a.plot ?? "").localeCompare(b.plot ?? "", "km") * dirMul); break;
+      case "position": sorted.sort((a, b) => (a.position ?? "").localeCompare(b.position ?? "", "km") * dirMul); break;
+      case "wage": sorted.sort((a, b) => (toKhr(a.wageRate, a.wageCurrency, farm.exchangeRate) - toKhr(b.wageRate, b.wageCurrency, farm.exchangeRate)) * dirMul); break;
+      case "startDate": sorted.sort((a, b) => {
+        // workers with no recorded start date always sink to the bottom,
+        // regardless of sort direction — there's nothing meaningful to compare
+        if (!a.startDate && !b.startDate) return 0;
+        if (!a.startDate) return 1;
+        if (!b.startDate) return -1;
+        return a.startDate.localeCompare(b.startDate) * dirMul;
+      }); break;
+      case "gender": sorted.sort((a, b) => (genderRank(a.gender) - genderRank(b.gender)) * dirMul); break;
+      case "status": sorted.sort((a, b) => (Number(a.status === "inactive") - Number(b.status === "inactive")) * dirMul); break;
     }
     return sorted;
   }, [workers, q, wageFilter, sort, farm.exchangeRate]);
