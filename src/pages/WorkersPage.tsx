@@ -12,6 +12,7 @@ import { fmtDate } from "@/lib/format";
 import { GENDER_LABELS, genderColor } from "@/lib/constants";
 import { toKhr } from "@/lib/currency";
 import { WorkerForm } from "@/components/workers/WorkerForm";
+import { WorkerDetailSheet } from "@/components/workers/WorkerDetailSheet";
 import type { FarmSettings, Role, WageType, Worker } from "@/types/domain";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 
@@ -41,6 +42,7 @@ export function WorkersPage({ role, farm }: { role: Role; farm: FarmSettings }) 
   const [wageFilter, setWageFilter] = useState<WageType | "all">("all");
   const [sort, setSort] = useState<SortValue<SortKey>>({ key: "name", dir: "asc" });
   const [modal, setModal] = useState<{ mode: "add" | "edit"; worker?: Worker } | null>(null);
+  const [detailWorker, setDetailWorker] = useState<Worker | null>(null);
 
   const workers = workersQ.data ?? [];
   const monthlyCount = workers.filter((w) => w.wageType === "monthly").length;
@@ -111,7 +113,7 @@ export function WorkersPage({ role, farm }: { role: Role; farm: FarmSettings }) 
       ) : (
         <div className="space-y-2">
           {filtered.map((w) => (
-            <div key={w.id} className="flex items-center gap-3 rounded-2xl p-3" style={{ background: C.card, border: `1px solid ${C.line}` }}>
+            <button key={w.id} onClick={() => setDetailWorker(w)} className="w-full flex items-center gap-3 rounded-2xl p-3 text-left" style={{ background: C.card, border: `1px solid ${C.line}` }}>
               <div className="w-11 h-11 rounded-full overflow-hidden flex items-center justify-center shrink-0" style={{ background: C.bgAlt }}>
                 {w.photo ? <img src={w.photo} className="w-full h-full object-cover" alt="" /> : <User size={18} color={C.greenMid} />}
               </div>
@@ -135,13 +137,28 @@ export function WorkersPage({ role, farm }: { role: Role; farm: FarmSettings }) 
               </div>
               {can(role, "editWorker") && (
                 <div className="flex items-center gap-2 shrink-0">
-                  <button onClick={() => setModal({ mode: "edit", worker: w })}><Pencil size={14} color={C.inkSoft} /></button>
-                  {can(role, "deleteWorker") && <button onClick={async () => { if (await confirm({ title: "លុបកម្មករ?", message: `លុប "${w.name}" ចេញពីប្រព័ន្ធ? កំណត់ត្រាម៉ោងធ្វើការ និងការបើកប្រាក់របស់គាត់នឹងត្រូវលុបផងដែរ។`, confirmLabel: "លុប", danger: true })) deleteM.mutate(w.id); }}><Trash2 size={14} color={C.red} /></button>}
+                  <span onClick={(e) => { e.stopPropagation(); setModal({ mode: "edit", worker: w }); }}><Pencil size={14} color={C.inkSoft} /></span>
+                  {can(role, "deleteWorker") && <span onClick={async (e) => { e.stopPropagation(); if (await confirm({ title: "លុបកម្មករ?", message: `លុប "${w.name}" ចេញពីប្រព័ន្ធ? កំណត់ត្រាម៉ោងធ្វើការ និងការបើកប្រាក់របស់គាត់នឹងត្រូវលុបផងដែរ។`, confirmLabel: "លុប", danger: true })) deleteM.mutate(w.id); }}><Trash2 size={14} color={C.red} /></span>}
                 </div>
               )}
-            </div>
+            </button>
           ))}
         </div>
+      )}
+
+      {detailWorker && (
+        <WorkerDetailSheet
+          worker={detailWorker}
+          role={role}
+          onClose={() => setDetailWorker(null)}
+          onEdit={() => { setModal({ mode: "edit", worker: detailWorker }); setDetailWorker(null); }}
+          onDelete={async () => {
+            if (await confirm({ title: "លុបកម្មករ?", message: `លុប "${detailWorker.name}" ចេញពីប្រព័ន្ធ? កំណត់ត្រាម៉ោងធ្វើការ និងការបើកប្រាក់របស់គាត់នឹងត្រូវលុបផងដែរ។`, confirmLabel: "លុប", danger: true })) {
+              deleteM.mutate(detailWorker.id);
+              setDetailWorker(null);
+            }
+          }}
+        />
       )}
 
       {modal && (

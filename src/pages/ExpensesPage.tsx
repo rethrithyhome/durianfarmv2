@@ -16,6 +16,7 @@ import { SkeletonList } from "@/components/ui/Skeleton";
 import { SortMenu, type SortValue } from "@/components/ui/SortMenu";
 import { SheetModal } from "@/components/ui/SheetModal";
 import { ExpenseForm } from "@/components/expenses/ExpenseForm";
+import { ExpenseDetailSheet } from "@/components/expenses/ExpenseDetailSheet";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/Toast";
 import type { Expense, FarmSettings, Role } from "@/types/domain";
@@ -55,6 +56,7 @@ export function ExpensesPage({ role, farm }: { role: Role; farm: FarmSettings })
   const [settleCatFilter, setSettleCatFilter] = useState<Set<Expense["category"]>>(new Set());
   const [settleSort, setSettleSort] = useState<SortValue<SettleSortKey>>({ key: "date", dir: "asc" });
   const [modal, setModal] = useState<{ mode: "add" | "edit"; expense?: Expense } | null>(null);
+  const [detailExpense, setDetailExpense] = useState<Expense | null>(null);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [confirmSettle, setConfirmSettle] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -150,7 +152,7 @@ export function ExpensesPage({ role, farm }: { role: Role; farm: FarmSettings })
           ) : (
             <div className="space-y-2">
               {sorted.map((e) => (
-                <div key={e.id} className="flex items-center gap-3 rounded-2xl p-3" style={{ background: C.card, border: `1px solid ${e.paid ? C.line : tint(C.goldDeep, 35)}` }}>
+                <button key={e.id} onClick={() => setDetailExpense(e)} className="w-full flex items-center gap-3 rounded-2xl p-3 text-left" style={{ background: C.card, border: `1px solid ${e.paid ? C.line : tint(C.goldDeep, 35)}` }}>
                   <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: tint(e.paid ? C.red : C.goldDeep, 12) }}><Receipt size={15} color={e.paid ? C.red : C.goldDeep} /></div>
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-semibold flex items-center gap-1.5" style={{ color: C.ink }}>
@@ -163,9 +165,9 @@ export function ExpensesPage({ role, farm }: { role: Role; farm: FarmSettings })
                     </div>
                   </div>
                   <div className="text-sm font-bold shrink-0" style={{ color: e.paid ? C.red : C.goldDeep }}>{fmtCurrency(e.amount, e.currency)}</div>
-                  {can(role, "editExpense") && <button onClick={() => setModal({ mode: "edit", expense: e })}><Pencil size={13} color={C.inkSoft} /></button>}
-                  {can(role, "deleteExpense") && <button onClick={async () => { if (await confirm({ title: "លុបកំណត់ត្រាចំណាយ?", message: `លុបចំណាយ "${expenseInfo(e.category).label}" ចេញពីប្រព័ន្ធ? សកម្មភាពនេះមិនអាចត្រឡប់វិញបានទេ។`, confirmLabel: "លុប", danger: true })) deleteM.mutate(e.id); }}><Trash2 size={13} color={C.red} /></button>}
-                </div>
+                  {can(role, "editExpense") && <span onClick={(ev) => { ev.stopPropagation(); setModal({ mode: "edit", expense: e }); }}><Pencil size={13} color={C.inkSoft} /></span>}
+                  {can(role, "deleteExpense") && <span onClick={async (ev) => { ev.stopPropagation(); if (await confirm({ title: "លុបកំណត់ត្រាចំណាយ?", message: `លុបចំណាយ "${expenseInfo(e.category).label}" ចេញពីប្រព័ន្ធ? សកម្មភាពនេះមិនអាចត្រឡប់វិញបានទេ។`, confirmLabel: "លុប", danger: true })) deleteM.mutate(e.id); }}><Trash2 size={13} color={C.red} /></span>}
+                </button>
               ))}
             </div>
           )}
@@ -218,6 +220,22 @@ export function ExpensesPage({ role, farm }: { role: Role; farm: FarmSettings })
             </div>
           </>
         )
+      )}
+
+      {detailExpense && (
+        <ExpenseDetailSheet
+          expense={detailExpense}
+          role={role}
+          trees={trees}
+          onClose={() => setDetailExpense(null)}
+          onEdit={() => { setModal({ mode: "edit", expense: detailExpense }); setDetailExpense(null); }}
+          onDelete={async () => {
+            if (await confirm({ title: "លុបកំណត់ត្រាចំណាយ?", message: `លុបចំណាយ "${expenseInfo(detailExpense.category).label}" ចេញពីប្រព័ន្ធ? សកម្មភាពនេះមិនអាចត្រឡប់វិញបានទេ។`, confirmLabel: "លុប", danger: true })) {
+              deleteM.mutate(detailExpense.id);
+              setDetailExpense(null);
+            }
+          }}
+        />
       )}
 
       {modal && (
